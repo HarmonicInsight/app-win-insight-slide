@@ -1,0 +1,11 @@
+# InsightSlides 依存パッケージ
+# pip install -r requirements.txt
+
+# PowerPoint操作
+python-pptx>=0.6.21
+
+# Excel操作
+openpyxl>=3.1.2
+
+# EXE化（オプション）
+# pyinstaller>=5.13.0
