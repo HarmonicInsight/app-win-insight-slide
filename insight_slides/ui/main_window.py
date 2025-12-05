@@ -9,7 +9,7 @@ from typing import Optional, Dict, List
 import threading
 
 from ..config import APP_NAME, APP_VERSION, COLORS, FONTS, WINDOW_SIZE
-from ..core.pptx_handler import extract_to_json, apply_from_json
+from ..core.pptx_handler import extract_to_json, apply_from_json, save_json, load_json
 from ..core.ai_processor import AIProcessor
 
 from .components.step_indicator import StepIndicator, StepManager
@@ -200,9 +200,13 @@ class MainWindow:
         )
         self.file_label.pack(side="left")
 
+        # 右側ボタン群
+        right_btns = ttk.Frame(info_frame)
+        right_btns.pack(side="right")
+
         # 戻るボタン
         back_btn = tk.Button(
-            info_frame,
+            right_btns,
             text="← ファイル選択に戻る",
             font=FONTS["small"],
             bg=COLORS["bg_secondary"],
@@ -211,7 +215,33 @@ class MainWindow:
             cursor="hand2",
             command=lambda: self.step_manager.go_to(0)
         )
-        back_btn.pack(side="right")
+        back_btn.pack(side="right", padx=(5, 0))
+
+        # JSON読込ボタン
+        load_json_btn = tk.Button(
+            right_btns,
+            text="📥 JSON読込",
+            font=FONTS["small"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            cursor="hand2",
+            command=self._load_json_file
+        )
+        load_json_btn.pack(side="right", padx=5)
+
+        # JSON保存ボタン
+        save_json_btn = tk.Button(
+            right_btns,
+            text="💾 JSON保存",
+            font=FONTS["small"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            cursor="hand2",
+            command=self._save_json_file
+        )
+        save_json_btn.pack(side="right", padx=5)
 
         # EditableGrid
         columns = [
@@ -397,6 +427,72 @@ class MainWindow:
         if file_path:
             self.output_path_var.set(file_path)
 
+    def _save_json_file(self):
+        """JSONを保存（外部編集用）"""
+        if not self.json_data:
+            messagebox.showwarning("警告", "データがありません")
+            return
+
+        # グリッドからデータを取得してJSONを更新
+        self._sync_grid_to_json()
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON", "*.json")],
+            initialfile=f"{Path(self.current_file).stem if self.current_file else 'data'}.json"
+        )
+
+        if file_path:
+            save_json(self.json_data, file_path)
+            self._set_status(f"JSON保存完了: {Path(file_path).name}")
+            messagebox.showinfo("完了", f"JSONを保存しました:\n{file_path}\n\n外部エディタで編集後、「JSON読込」で取り込めます。")
+
+    def _load_json_file(self):
+        """JSONを読込（外部編集後の取り込み）"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("JSON", "*.json"), ("すべて", "*.*")]
+        )
+
+        if not file_path:
+            return
+
+        try:
+            self.json_data = load_json(file_path)
+
+            # グリッドにデータを読み込み
+            grid_data = []
+            for slide in self.json_data.get("slides", []):
+                for shape in slide.get("shapes", []):
+                    grid_data.append({
+                        "slide": str(slide["slide"]),
+                        "shape": shape["name"],
+                        "original": shape.get("original", shape["text"]),
+                        "text": shape["text"],
+                    })
+
+            self.grid.load_data(grid_data)
+
+            file_name = Path(file_path).name
+            self.file_label.config(text=f"ファイル: {file_name} (JSON)")
+            self._set_status(f"JSON読み込み完了: {file_name}")
+
+        except Exception as e:
+            messagebox.showerror("エラー", f"JSON読み込みエラー:\n{e}")
+
+    def _sync_grid_to_json(self):
+        """グリッドの内容をJSONデータに同期"""
+        if not self.json_data:
+            return
+
+        grid_data = self.grid.get_data()
+        data_idx = 0
+
+        for slide in self.json_data.get("slides", []):
+            for shape in slide.get("shapes", []):
+                if data_idx < len(grid_data):
+                    shape["text"] = grid_data[data_idx]["text"]
+                    data_idx += 1
+
     def _save_file(self):
         """ファイルを保存"""
         if not self.current_file or not self.json_data:
@@ -410,14 +506,7 @@ class MainWindow:
 
         try:
             # グリッドからデータを取得してJSONを更新
-            grid_data = self.grid.get_data()
-            data_idx = 0
-
-            for slide in self.json_data.get("slides", []):
-                for shape in slide.get("shapes", []):
-                    if data_idx < len(grid_data):
-                        shape["text"] = grid_data[data_idx]["text"]
-                        data_idx += 1
+            self._sync_grid_to_json()
 
             # バックアップ
             if self.backup_var.get() and Path(output_path).exists():
