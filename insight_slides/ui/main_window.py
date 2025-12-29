@@ -11,6 +11,7 @@ import threading
 from ..config import APP_NAME, APP_VERSION, COLORS, FONTS, WINDOW_SIZE
 from ..core.pptx_handler import extract_to_json, apply_from_json, save_json, load_json, load_excel, save_excel
 from ..core.ai_processor import AIProcessor
+from ..licensing import LicenseManager, LicenseTier, TIERS
 
 from .components.step_indicator import StepIndicator, StepManager
 from .components.drop_zone import DropZone
@@ -35,6 +36,9 @@ class MainWindow:
         self.json_data: Optional[Dict] = None
         self.ai_processor = AIProcessor()
         self.ai_processor.set_provider("mock")
+
+        # ライセンス管理
+        self.license_manager = LicenseManager()
 
         # DPI対応
         self._setup_dpi()
@@ -110,9 +114,33 @@ class MainWindow:
         )
         version_label.pack(side="left", padx=(5, 0))
 
+        # ライセンスバッジ
+        self.license_badge = tk.Label(
+            title_frame,
+            text="",
+            font=FONTS["small"],
+            padx=8,
+            pady=2
+        )
+        self.license_badge.pack(side="left", padx=(10, 0))
+        self._update_license_badge()
+
         # 右側: ボタン
         btn_frame = ttk.Frame(inner, style="Header.TFrame")
         btn_frame.pack(side="right")
+
+        # ライセンスボタン
+        license_btn = tk.Button(
+            btn_frame,
+            text="🔑 ライセンス",
+            font=FONTS["small"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            cursor="hand2",
+            command=self._show_license_dialog
+        )
+        license_btn.pack(side="left", padx=5)
 
         # 設定ボタン
         settings_btn = tk.Button(
@@ -732,3 +760,180 @@ class MainWindow:
     def _set_status(self, message: str):
         """ステータスバーを更新"""
         self.status_label.config(text=message)
+
+    # === ライセンス ===
+
+    def _update_license_badge(self):
+        """ライセンスバッジを更新"""
+        tier = self.license_manager.get_tier()
+        tier_info = TIERS[tier]
+
+        # バッジの色とテキスト
+        badge_colors = {
+            LicenseTier.FREE: ("#6B7280", "#F3F4F6"),      # グレー
+            LicenseTier.TRIAL: ("#F59E0B", "#FEF3C7"),     # オレンジ
+            LicenseTier.STD: ("#3B82F6", "#DBEAFE"),       # ブルー
+            LicenseTier.PRO: ("#8B5CF6", "#EDE9FE"),       # パープル
+            LicenseTier.ENT: ("#1E3A8A", "#DBEAFE"),       # ネイビー
+        }
+
+        fg, bg = badge_colors.get(tier, ("#6B7280", "#F3F4F6"))
+        self.license_badge.config(
+            text=tier_info["name_ja"],
+            fg=fg,
+            bg=bg
+        )
+
+        # ウィンドウタイトルも更新
+        self.root.title(f"{APP_NAME} {tier_info['name']} - v{APP_VERSION}")
+
+    def _show_license_dialog(self):
+        """ライセンスダイアログを表示"""
+        LicenseDialog(self.root, self.license_manager, self._update_license_badge)
+
+
+class LicenseDialog:
+    """ライセンス管理ダイアログ"""
+
+    def __init__(self, parent, license_manager: LicenseManager, on_update_callback):
+        self.license_manager = license_manager
+        self.on_update_callback = on_update_callback
+
+        self.dialog = tk.Toplevel(parent)
+        self.dialog.title("ライセンス管理")
+        self.dialog.geometry("500x400")
+        self.dialog.transient(parent)
+        self.dialog.grab_set()
+
+        self._create_ui()
+        self._center_window(parent)
+
+    def _center_window(self, parent):
+        """ウィンドウを中央に配置"""
+        self.dialog.update_idletasks()
+        x = parent.winfo_x() + (parent.winfo_width() - self.dialog.winfo_width()) // 2
+        y = parent.winfo_y() + (parent.winfo_height() - self.dialog.winfo_height()) // 2
+        self.dialog.geometry(f"+{x}+{y}")
+
+    def _create_ui(self):
+        """UIを構築"""
+        main_frame = ttk.Frame(self.dialog, padding=20)
+        main_frame.pack(fill="both", expand=True)
+
+        # 現在のライセンス情報
+        info_frame = ttk.LabelFrame(main_frame, text="現在のライセンス", padding=15)
+        info_frame.pack(fill="x", pady=(0, 15))
+
+        tier = self.license_manager.get_tier()
+        tier_info = TIERS[tier]
+
+        ttk.Label(info_frame, text=f"プラン: {tier_info['name_ja']}", font=FONTS["body"]).pack(anchor="w")
+        ttk.Label(info_frame, text=f"有効期限: {self.license_manager.get_expiration_display()}", font=FONTS["small"]).pack(anchor="w", pady=(5, 0))
+
+        # 機能制限
+        limits = self.license_manager.get_feature_limits()
+        features_text = []
+        if limits.update_slide_limit:
+            features_text.append(f"更新: {limits.update_slide_limit}スライドまで")
+        else:
+            features_text.append("更新: 無制限")
+        features_text.append(f"バッチ処理: {'○' if limits.batch_extract else '×'}")
+        features_text.append(f"AI処理: {'○' if limits.ai_processing else '×'}")
+
+        ttk.Label(info_frame, text=" / ".join(features_text), font=FONTS["small"], foreground=COLORS["text_muted"]).pack(anchor="w", pady=(5, 0))
+
+        # ライセンスキー入力
+        key_frame = ttk.LabelFrame(main_frame, text="ライセンスキー", padding=15)
+        key_frame.pack(fill="x", pady=(0, 15))
+
+        self.key_entry = ttk.Entry(key_frame, width=50, font=FONTS["body"])
+        self.key_entry.pack(fill="x", pady=(0, 10))
+
+        # 現在のキーがあれば表示
+        current_key = self.license_manager.license_info.get('key', '')
+        if current_key:
+            self.key_entry.insert(0, current_key)
+
+        btn_frame = ttk.Frame(key_frame)
+        btn_frame.pack(fill="x")
+
+        activate_btn = tk.Button(
+            btn_frame,
+            text="アクティベート",
+            font=FONTS["body"],
+            bg=COLORS["primary"],
+            fg="white",
+            relief="flat",
+            padx=15,
+            pady=5,
+            cursor="hand2",
+            command=self._activate
+        )
+        activate_btn.pack(side="left")
+
+        deactivate_btn = tk.Button(
+            btn_frame,
+            text="解除",
+            font=FONTS["body"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            padx=15,
+            pady=5,
+            cursor="hand2",
+            command=self._deactivate
+        )
+        deactivate_btn.pack(side="left", padx=(10, 0))
+
+        # プラン比較
+        compare_frame = ttk.LabelFrame(main_frame, text="プラン比較", padding=15)
+        compare_frame.pack(fill="both", expand=True)
+
+        plans = [
+            ("Free", "3スライド制限", "無料"),
+            ("Trial", "14日間全機能", "無料"),
+            ("Standard", "無制限更新+AI", "¥2,980/年"),
+            ("Pro", "全機能+バッチ", "¥5,980/年"),
+        ]
+
+        for name, features, price in plans:
+            row = ttk.Frame(compare_frame)
+            row.pack(fill="x", pady=2)
+            ttk.Label(row, text=name, font=FONTS["body"], width=10).pack(side="left")
+            ttk.Label(row, text=features, font=FONTS["small"], foreground=COLORS["text_muted"]).pack(side="left", padx=10)
+            ttk.Label(row, text=price, font=FONTS["small"]).pack(side="right")
+
+        # 閉じるボタン
+        close_btn = tk.Button(
+            main_frame,
+            text="閉じる",
+            font=FONTS["body"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            padx=20,
+            pady=5,
+            cursor="hand2",
+            command=self.dialog.destroy
+        )
+        close_btn.pack(pady=(15, 0))
+
+    def _activate(self):
+        """ライセンスをアクティベート"""
+        key = self.key_entry.get().strip()
+        success, message = self.license_manager.activate(key)
+
+        if success:
+            messagebox.showinfo("成功", message)
+            self.on_update_callback()
+            self.dialog.destroy()
+        else:
+            messagebox.showerror("エラー", message)
+
+    def _deactivate(self):
+        """ライセンスを解除"""
+        if messagebox.askyesno("確認", "ライセンスを解除しますか？"):
+            self.license_manager.deactivate()
+            messagebox.showinfo("完了", "ライセンスを解除しました")
+            self.on_update_callback()
+            self.dialog.destroy()
