@@ -9,7 +9,7 @@ from typing import Optional, Dict, List
 import threading
 
 from ..config import APP_NAME, APP_VERSION, COLORS, FONTS, WINDOW_SIZE
-from ..core.pptx_handler import extract_to_json, apply_from_json, save_json, load_json
+from ..core.pptx_handler import extract_to_json, apply_from_json, save_json, load_json, load_excel, save_excel
 from ..core.ai_processor import AIProcessor
 
 from .components.step_indicator import StepIndicator, StepManager
@@ -216,6 +216,32 @@ class MainWindow:
             command=lambda: self.step_manager.go_to(0)
         )
         back_btn.pack(side="right", padx=(5, 0))
+
+        # Excel読込ボタン
+        load_excel_btn = tk.Button(
+            right_btns,
+            text="📥 Excel読込",
+            font=FONTS["small"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            cursor="hand2",
+            command=self._load_excel_file
+        )
+        load_excel_btn.pack(side="right", padx=5)
+
+        # Excel保存ボタン
+        save_excel_btn = tk.Button(
+            right_btns,
+            text="📊 Excel保存",
+            font=FONTS["small"],
+            bg=COLORS["bg_secondary"],
+            fg=COLORS["text"],
+            relief="flat",
+            cursor="hand2",
+            command=self._save_excel_file
+        )
+        save_excel_btn.pack(side="right", padx=5)
 
         # JSON読込ボタン
         load_json_btn = tk.Button(
@@ -478,6 +504,61 @@ class MainWindow:
 
         except Exception as e:
             messagebox.showerror("エラー", f"JSON読み込みエラー:\n{e}")
+
+    def _save_excel_file(self):
+        """Excelを保存（外部編集用）"""
+        if not self.json_data:
+            messagebox.showwarning("警告", "データがありません")
+            return
+
+        # グリッドからデータを取得してJSONを更新
+        self._sync_grid_to_json()
+
+        file_path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile=f"{Path(self.current_file).stem if self.current_file else 'data'}.xlsx"
+        )
+
+        if file_path:
+            try:
+                save_excel(self.json_data, file_path)
+                self._set_status(f"Excel保存完了: {Path(file_path).name}")
+                messagebox.showinfo("完了", f"Excelを保存しました:\n{file_path}\n\n外部エディタで編集後、「Excel読込」で取り込めます。")
+            except Exception as e:
+                messagebox.showerror("エラー", f"Excel保存エラー:\n{e}")
+
+    def _load_excel_file(self):
+        """Excelを読込（外部編集後の取り込み）"""
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Excel", "*.xlsx"), ("すべて", "*.*")]
+        )
+
+        if not file_path:
+            return
+
+        try:
+            self.json_data = load_excel(file_path)
+
+            # グリッドにデータを読み込み
+            grid_data = []
+            for slide in self.json_data.get("slides", []):
+                for shape in slide.get("shapes", []):
+                    grid_data.append({
+                        "slide": str(slide["slide"]),
+                        "shape": shape.get("name", ""),
+                        "original": shape.get("original", shape["text"]),
+                        "text": shape["text"],
+                    })
+
+            self.grid.load_data(grid_data)
+
+            file_name = Path(file_path).name
+            self.file_label.config(text=f"ファイル: {file_name} (Excel)")
+            self._set_status(f"Excel読み込み完了: {file_name}")
+
+        except Exception as e:
+            messagebox.showerror("エラー", f"Excel読み込みエラー:\n{e}")
 
     def _sync_grid_to_json(self):
         """グリッドの内容をJSONデータに同期"""
