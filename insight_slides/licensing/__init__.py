@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 InsightSlides Licensing Module
-ハイブリッド方式: 統一形式 + レガシー形式対応
+統一形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
 """
 from .types import (
     LicenseTier,

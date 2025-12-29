@@ -46,7 +46,7 @@ TIERS: Dict[LicenseTier, Dict[str, Any]] = {
     LicenseTier.ENT: {
         "name": "Enterprise",
         "name_ja": "エンタープライズ",
-        "duration_months": None,  # 永久
+        "duration_months": None,
         "duration_days": None,
     },
 }
@@ -78,7 +78,7 @@ FEATURE_LIMITS: Dict[LicenseTier, FeatureLimits] = {
         font_analysis=False,
     ),
     LicenseTier.TRIAL: FeatureLimits(
-        update_slide_limit=None,  # 無制限
+        update_slide_limit=None,
         batch_extract=True,
         batch_update=True,
         diff_preview=True,
@@ -127,7 +127,6 @@ class ValidationResult:
     tier: LicenseTier = LicenseTier.FREE
     expires: Optional[str] = None  # YYYY-MM-DD or None
     error: Optional[str] = None
-    is_legacy: bool = False  # レガシー形式かどうか
 
 
 # 製品コード
