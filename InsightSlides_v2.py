@@ -382,52 +382,113 @@ class LicenseManager:
 
 
 # ============== モダンデザインシステム ==============
-# ホワイトテーマ - シンプルブルー（InsightExtract風）
+# B2B SaaS品質 - Notion/Linear/Figma風
+
+# カラーパレット（洗練されたニュートラル + 落ち着いたブルー）
 COLOR_PALETTE = {
-    # 背景（ホワイト基調・シンプル）
-    "bg_primary": "#ffffff",       # ホワイト
-    "bg_secondary": "#f8fafc",     # スレート50
-    "bg_elevated": "#f1f5f9",      # スレート100
-    "bg_card": "#ffffff",
-    "bg_input": "#ffffff",
+    # 背景
+    "bg_primary": "#FFFFFF",       # メイン背景
+    "bg_secondary": "#F8FAFC",     # セカンダリ背景（カード内）
+    "bg_elevated": "#F1F5F9",      # 強調背景（ホバー等）
+    "bg_sidebar": "#FAFBFC",       # サイドバー背景
+    "bg_card": "#FFFFFF",          # カード背景
+    "bg_input": "#FFFFFF",         # 入力フィールド背景
 
-    # テキスト
-    "text_primary": "#1e293b",     # スレート800
-    "text_secondary": "#475569",   # スレート600
-    "text_muted": "#94a3b8",       # スレート400
+    # テキスト（4段階の階層）
+    "text_primary": "#1F2937",     # メインテキスト（見出し）
+    "text_secondary": "#374151",   # 本文テキスト
+    "text_tertiary": "#6B7280",    # 補助テキスト
+    "text_muted": "#9CA3AF",       # 薄いテキスト（注釈）
+    "text_placeholder": "#D1D5DB", # プレースホルダー
 
-    # ブランドカラー（ブルー基調）
-    "brand_primary": "#2563eb",    # ブルー600
-    "brand_hover": "#3b82f6",      # ブルー500
-    "brand_update": "#0d9488",     # ティール600
-    "brand_compare": "#7c3aed",    # バイオレット600
+    # ブランドカラー（落ち着いたブルー系）
+    "brand_primary": "#2563EB",    # プライマリブルー
+    "brand_hover": "#1D4ED8",      # ホバー時（濃い）
+    "brand_light": "#DBEAFE",      # 薄いブルー（選択背景）
+    "brand_muted": "#93C5FD",      # ミュートブルー
+
+    # セカンダリアクション
+    "secondary_default": "#F3F4F6",  # セカンダリボタン背景
+    "secondary_hover": "#E5E7EB",    # セカンダリホバー
+    "secondary_border": "#D1D5DB",   # セカンダリボーダー
+
+    # 機能別カラー
+    "action_update": "#059669",    # 更新（グリーン）
+    "action_compare": "#7C3AED",   # 比較（パープル）
+    "action_danger": "#DC2626",    # 危険（赤・控えめ）
 
     # ステータス
-    "success": "#10b981", "warning": "#f59e0b", "error": "#ef4444",
+    "success": "#10B981",
+    "success_light": "#D1FAE5",
+    "warning": "#F59E0B",
+    "warning_light": "#FEF3C7",
+    "error": "#EF4444",
+    "error_light": "#FEE2E2",
+    "info": "#3B82F6",
+    "info_light": "#DBEAFE",
 
-    # ボーダー
-    "border_light": "#e2e8f0", "border_medium": "#cbd5e1",
+    # ボーダー・区切り
+    "border_light": "#E5E7EB",     # 薄いボーダー
+    "border_default": "#D1D5DB",   # 標準ボーダー
+    "border_dark": "#9CA3AF",      # 濃いボーダー
+    "divider": "#F3F4F6",          # セクション区切り
 
-    # 差分
-    "diff_changed": "#fef3c7", "diff_added": "#d1fae5", "diff_removed": "#fee2e2",
+    # 差分表示
+    "diff_changed": "#FEF3C7",
+    "diff_added": "#D1FAE5",
+    "diff_removed": "#FEE2E2",
 }
 
-FONT_FAMILY = "Segoe UI"
+# フォント設定（階層化）
+FONT_FAMILY_SANS = "Segoe UI"       # メインフォント
+FONT_FAMILY_MONO = "Consolas"       # 等幅フォント（ログ・コード）
 
 def get_fonts(size_preset: str = 'medium') -> dict:
     base = {'small': 10, 'medium': 11, 'large': 13}.get(size_preset, 11)
     return {
-        "display": (FONT_FAMILY, base + 10, "bold"),
-        "heading": (FONT_FAMILY, base + 3, "bold"),
-        "subheading": (FONT_FAMILY, base + 1, "bold"),
-        "body": (FONT_FAMILY, base, "normal"),
-        "body_bold": (FONT_FAMILY, base, "bold"),
-        "caption": (FONT_FAMILY, base - 1, "normal"),
-        "small": (FONT_FAMILY, base - 2, "normal"),
+        # 見出し系（Semibold）
+        "display": (FONT_FAMILY_SANS, base + 8, "bold"),      # アプリタイトル
+        "title": (FONT_FAMILY_SANS, base + 4, "bold"),        # 画面タイトル
+        "heading": (FONT_FAMILY_SANS, base + 2, "bold"),      # セクション見出し
+
+        # 本文系
+        "body": (FONT_FAMILY_SANS, base, "normal"),           # 本文
+        "body_medium": (FONT_FAMILY_SANS, base, "bold"),      # 本文（強調）
+        "body_bold": (FONT_FAMILY_SANS, base, "bold"),        # ボタンラベル
+
+        # 補助系
+        "caption": (FONT_FAMILY_SANS, base - 1, "normal"),    # キャプション
+        "small": (FONT_FAMILY_SANS, base - 2, "normal"),      # 注釈
+        "tiny": (FONT_FAMILY_SANS, base - 3, "normal"),       # 極小
+
+        # 等幅（ログ・データ表示用）
+        "mono": (FONT_FAMILY_MONO, base, "normal"),
+        "mono_small": (FONT_FAMILY_MONO, base - 1, "normal"),
     }
 
 FONTS = get_fonts('medium')
-SPACING = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24}
+
+# スペーシングシステム（8pxベース）
+SPACING = {
+    "none": 0,
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48,
+}
+
+# 角丸
+RADIUS = {
+    "none": 0,
+    "sm": 4,
+    "default": 6,
+    "md": 8,
+    "lg": 12,
+    "full": 9999,
+}
 
 
 class ConfigManager:
@@ -788,7 +849,7 @@ class CompareDialog:
         btn = ttk.Frame(frame)
         btn.pack(fill='x', pady=10)
         ttk.Button(btn, text="キャンセル", command=self.dialog.destroy).pack(side='left')
-        tk.Button(btn, text="比較実行", bg=COLOR_PALETTE["brand_primary"], fg="white",
+        tk.Button(btn, text="比較実行", bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   command=self._execute).pack(side='left', padx=10)
 
     def _browse(self, var):
@@ -876,7 +937,7 @@ class CompareResultWindow:
         bottom.pack(fill='x')
         ttk.Button(bottom, text="全て元", command=lambda: self._select_all("before")).pack(side='left', padx=2)
         ttk.Button(bottom, text="全て新", command=lambda: self._select_all("after")).pack(side='left', padx=2)
-        tk.Button(bottom, text="選択を反映 →", bg=COLOR_PALETTE["brand_primary"], fg="white",
+        tk.Button(bottom, text="選択を反映 →", bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   command=self._apply).pack(side='right', padx=5)
         ttk.Button(bottom, text="閉じる", command=self.window.destroy).pack(side='right')
 
@@ -980,65 +1041,149 @@ class InsightSlidesApp:
         self.root.configure(bg=COLOR_PALETTE["bg_primary"])
 
     def _apply_styles(self):
+        """B2B SaaS品質のスタイル設定"""
         self.style = ttk.Style()
         self.style.theme_use('clam')
 
-        # フレーム
+        # === フレーム ===
         self.style.configure('Main.TFrame', background=COLOR_PALETTE["bg_primary"])
-        self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_secondary"])
+        self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_card"])
+        self.style.configure('Sidebar.TFrame', background=COLOR_PALETTE["bg_sidebar"])
 
-        # ラベルフレーム
-        self.style.configure('TLabelframe', background=COLOR_PALETTE["bg_secondary"],
+        # === ラベルフレーム（カード風） ===
+        self.style.configure('TLabelframe',
+                            background=COLOR_PALETTE["bg_card"],
+                            bordercolor=COLOR_PALETTE["border_light"],
+                            lightcolor=COLOR_PALETTE["border_light"],
+                            darkcolor=COLOR_PALETTE["border_light"])
+        self.style.configure('TLabelframe.Label',
+                            background=COLOR_PALETTE["bg_card"],
                             foreground=COLOR_PALETTE["text_primary"],
-                            bordercolor=COLOR_PALETTE["border_light"])
-        self.style.configure('TLabelframe.Label', background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"], font=FONTS["body_bold"])
+                            font=FONTS["heading"])
 
-        # ラベル
-        self.style.configure('TLabel', background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"])
-
-        # ボタン
-        self.style.configure('TButton', background=COLOR_PALETTE["bg_elevated"],
-                            foreground=COLOR_PALETTE["text_primary"], padding=(12, 6))
-
-        # チェックボックス
-        self.style.configure('TCheckbutton', background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"])
-
-        # コンボボックス
-        self.style.configure('TCombobox', fieldbackground=COLOR_PALETTE["bg_input"],
-                            background=COLOR_PALETTE["bg_elevated"],
-                            foreground=COLOR_PALETTE["text_primary"])
-
-        # エントリ
-        self.style.configure('TEntry', fieldbackground=COLOR_PALETTE["bg_input"],
+        # === ラベル ===
+        self.style.configure('TLabel',
+                            background=COLOR_PALETTE["bg_card"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            font=FONTS["body"])
+        self.style.configure('Title.TLabel',
                             foreground=COLOR_PALETTE["text_primary"],
-                            bordercolor=COLOR_PALETTE["border_light"])
+                            font=FONTS["title"])
+        self.style.configure('Heading.TLabel',
+                            foreground=COLOR_PALETTE["text_primary"],
+                            font=FONTS["heading"])
+        self.style.configure('Caption.TLabel',
+                            foreground=COLOR_PALETTE["text_tertiary"],
+                            font=FONTS["caption"])
+        self.style.configure('Muted.TLabel',
+                            foreground=COLOR_PALETTE["text_muted"],
+                            font=FONTS["small"])
 
-        # Notebook（タブ）
-        self.style.configure('TNotebook', background=COLOR_PALETTE["bg_primary"])
-        self.style.configure('TNotebook.Tab', background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"], padding=(16, 8))
-        self.style.map('TNotebook.Tab',
-                      background=[('selected', COLOR_PALETTE["brand_primary"])],
-                      foreground=[('selected', '#ffffff')])
+        # === ボタン（セカンダリ）===
+        self.style.configure('TButton',
+                            background=COLOR_PALETTE["secondary_default"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            bordercolor=COLOR_PALETTE["border_default"],
+                            focuscolor=COLOR_PALETTE["brand_light"],
+                            padding=(SPACING["md"], SPACING["sm"]),
+                            font=FONTS["body"])
+        self.style.map('TButton',
+                      background=[('active', COLOR_PALETTE["secondary_hover"]),
+                                 ('pressed', COLOR_PALETTE["secondary_hover"])],
+                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])])
 
-        # プログレスバー
-        self.style.configure('TProgressbar', background=COLOR_PALETTE["brand_primary"],
-                            troughcolor=COLOR_PALETTE["bg_elevated"])
+        # === チェックボックス ===
+        self.style.configure('TCheckbutton',
+                            background=COLOR_PALETTE["bg_card"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            font=FONTS["body"])
+        self.style.map('TCheckbutton',
+                      background=[('active', COLOR_PALETTE["bg_card"])])
 
-        # Treeview（グリッド）
-        self.style.configure('Treeview',
+        # === ラジオボタン ===
+        self.style.configure('TRadiobutton',
+                            background=COLOR_PALETTE["bg_card"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            font=FONTS["body"])
+
+        # === コンボボックス ===
+        self.style.configure('TCombobox',
+                            fieldbackground=COLOR_PALETTE["bg_input"],
+                            background=COLOR_PALETTE["bg_input"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            bordercolor=COLOR_PALETTE["border_default"],
+                            arrowcolor=COLOR_PALETTE["text_tertiary"],
+                            padding=(SPACING["sm"], SPACING["xs"]))
+        self.style.map('TCombobox',
+                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])],
+                      fieldbackground=[('readonly', COLOR_PALETTE["bg_secondary"])])
+
+        # === エントリ ===
+        self.style.configure('TEntry',
+                            fieldbackground=COLOR_PALETTE["bg_input"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            bordercolor=COLOR_PALETTE["border_default"],
+                            insertcolor=COLOR_PALETTE["text_primary"],
+                            padding=(SPACING["sm"], SPACING["xs"]))
+        self.style.map('TEntry',
+                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])])
+
+        # === Notebook（タブ） ===
+        self.style.configure('TNotebook',
                             background=COLOR_PALETTE["bg_primary"],
-                            foreground=COLOR_PALETTE["text_primary"],
-                            fieldbackground=COLOR_PALETTE["bg_primary"],
-                            rowheight=28)
+                            bordercolor=COLOR_PALETTE["border_light"],
+                            tabmargins=[0, 0, 0, 0])
+        self.style.configure('TNotebook.Tab',
+                            background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_tertiary"],
+                            padding=(SPACING["lg"], SPACING["sm"]),
+                            font=FONTS["body"])
+        self.style.map('TNotebook.Tab',
+                      background=[('selected', COLOR_PALETTE["bg_card"])],
+                      foreground=[('selected', COLOR_PALETTE["text_primary"])],
+                      expand=[('selected', [0, 0, 0, 2])])
+
+        # === プログレスバー ===
+        self.style.configure('TProgressbar',
+                            background=COLOR_PALETTE["brand_primary"],
+                            troughcolor=COLOR_PALETTE["bg_elevated"],
+                            bordercolor=COLOR_PALETTE["border_light"],
+                            lightcolor=COLOR_PALETTE["brand_primary"],
+                            darkcolor=COLOR_PALETTE["brand_hover"])
+
+        # === Treeview（グリッド） ===
+        self.style.configure('Treeview',
+                            background=COLOR_PALETTE["bg_card"],
+                            foreground=COLOR_PALETTE["text_secondary"],
+                            fieldbackground=COLOR_PALETTE["bg_card"],
+                            bordercolor=COLOR_PALETTE["border_light"],
+                            rowheight=32,
+                            font=FONTS["body"])
         self.style.configure('Treeview.Heading',
-                            background=COLOR_PALETTE["bg_elevated"],
+                            background=COLOR_PALETTE["bg_secondary"],
                             foreground=COLOR_PALETTE["text_primary"],
-                            font=FONTS["body_bold"])
-        self.style.map('Treeview', background=[('selected', COLOR_PALETTE["brand_primary"])])
+                            bordercolor=COLOR_PALETTE["border_light"],
+                            font=FONTS["body_medium"],
+                            padding=(SPACING["sm"], SPACING["xs"]))
+        self.style.map('Treeview',
+                      background=[('selected', COLOR_PALETTE["brand_light"])],
+                      foreground=[('selected', COLOR_PALETTE["brand_primary"])])
+
+        # === スクロールバー ===
+        self.style.configure('Vertical.TScrollbar',
+                            background=COLOR_PALETTE["bg_elevated"],
+                            troughcolor=COLOR_PALETTE["bg_card"],
+                            bordercolor=COLOR_PALETTE["bg_card"],
+                            arrowcolor=COLOR_PALETTE["text_muted"])
+        self.style.configure('Horizontal.TScrollbar',
+                            background=COLOR_PALETTE["bg_elevated"],
+                            troughcolor=COLOR_PALETTE["bg_card"],
+                            bordercolor=COLOR_PALETTE["bg_card"],
+                            arrowcolor=COLOR_PALETTE["text_muted"])
+
+        # === セパレーター ===
+        self.style.configure('TSeparator',
+                            background=COLOR_PALETTE["divider"])
 
     def _create_menu(self):
         menubar = tk.Menu(self.root)
@@ -1080,70 +1225,83 @@ class InsightSlidesApp:
         self._create_output(content)
 
     def _create_header(self, parent):
-        header = tk.Frame(parent, bg=COLOR_PALETTE["bg_elevated"], padx=SPACING["xl"], pady=SPACING["lg"])
+        """洗練されたヘッダー - 余白で区切り、シンプルに"""
+        header = tk.Frame(parent, bg=COLOR_PALETTE["bg_primary"])
         header.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["lg"]))
 
-        # 左: タイトル
-        left = tk.Frame(header, bg=COLOR_PALETTE["bg_elevated"])
+        # 左: タイトル + サブタイトル
+        left = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         left.pack(side='left')
 
-        tk.Label(left, text="◈ Insight Slides", font=FONTS["display"],
-                 fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_elevated"]).pack(side='left')
+        # アプリ名（シンプルに）
+        tk.Label(left, text="Insight Slides", font=FONTS["display"],
+                 fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
 
+        # ライセンスバッジ（あれば）
         tier = self.license_manager.get_tier_info()
         if tier['name'] != 'Free':
-            tk.Label(left, text=f" {tier['name']}", font=FONTS["heading"],
-                     fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_elevated"]).pack(side='left')
+            badge = tk.Label(left, text=f" {tier['name']} ", font=FONTS["small"],
+                            fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["brand_light"],
+                            padx=6, pady=2)
+            badge.pack(side='left', padx=(SPACING["sm"], 0))
 
-        tk.Label(left, text=f"  {t('app_subtitle')}", font=FONTS["caption"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_elevated"]).pack(side='left', padx=(10, 0))
+        # サブタイトル
+        tk.Label(left, text=t('app_subtitle'), font=FONTS["caption"],
+                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["lg"], 0))
 
-        # 右: モード + バージョン
-        right = tk.Frame(header, bg=COLOR_PALETTE["bg_elevated"])
+        # 右: バージョン
+        right = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         right.pack(side='right')
 
-        self.mode_label = tk.Label(right, text=t('mode_extract'), font=FONTS["body"],
-                                   fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_elevated"])
-        self.mode_label.pack(side='left', padx=(0, 20))
-
-        tk.Label(right, text=f"v{APP_VERSION}", font=FONTS["caption"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_elevated"]).pack(side='left')
+        tk.Label(right, text=f"v{APP_VERSION}", font=FONTS["small"],
+                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='right')
 
     def _create_controls(self, parent):
-        frame = ttk.Frame(parent, style='Main.TFrame')
-        frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["lg"]))
+        """左サイドバー - カード構造で整理"""
+        frame = ttk.Frame(parent, style='Sidebar.TFrame')
+        frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
         frame.grid_rowconfigure(4, weight=1)
 
-        # モード切替（3ボタン: 抽出/更新/比較）
-        mode_card = ttk.LabelFrame(frame, text="操作モード", padding=SPACING["md"])
+        # モード切替（セグメントコントロール風）
+        mode_card = ttk.LabelFrame(frame, text="操作モード", padding=SPACING["lg"])
         mode_card.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
         mode_card.grid_columnconfigure(0, weight=1)
         mode_card.grid_columnconfigure(1, weight=1)
         mode_card.grid_columnconfigure(2, weight=1)
 
-        self.extract_btn = tk.Button(mode_card, text=f"📤 {t('mode_extract_short')}", font=FONTS["body_bold"],
-                                     bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat",
-                                     activebackground=COLOR_PALETTE["brand_hover"], activeforeground="white",
-                                     command=self._switch_extract, cursor="hand2", pady=8)
-        self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, 3))
+        # ボタンスタイル定数
+        btn_padding = SPACING["sm"]
+        btn_radius = RADIUS["default"]
 
-        self.update_btn = tk.Button(mode_card, text=f"📥 {t('mode_update_short')}", font=FONTS["body_bold"],
-                                    bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"],
-                                    relief="solid", bd=1, highlightbackground=COLOR_PALETTE["border_medium"],
-                                    command=self._switch_update, cursor="hand2", pady=8)
-        self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, 3))
+        # 抽出ボタン（プライマリ）
+        self.extract_btn = tk.Button(mode_card, text=t('mode_extract_short'), font=FONTS["body_medium"],
+                                     bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
+                                     activebackground=COLOR_PALETTE["brand_hover"], activeforeground="#FFFFFF",
+                                     relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
+                                     command=self._switch_extract, cursor="hand2")
+        self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, SPACING["xs"]))
 
-        self.compare_btn = tk.Button(mode_card, text="🔀 比較", font=FONTS["body_bold"],
-                                     bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"],
-                                     relief="solid", bd=1, highlightbackground=COLOR_PALETTE["border_medium"],
-                                     command=self._show_compare_dialog, cursor="hand2", pady=8)
+        # 更新ボタン（セカンダリ）
+        self.update_btn = tk.Button(mode_card, text=t('mode_update_short'), font=FONTS["body_medium"],
+                                    bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
+                                    activebackground=COLOR_PALETTE["secondary_hover"],
+                                    relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
+                                    command=self._switch_update, cursor="hand2")
+        self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, SPACING["xs"]))
+
+        # 比較ボタン（セカンダリ）
+        self.compare_btn = tk.Button(mode_card, text="比較", font=FONTS["body_medium"],
+                                     bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
+                                     activebackground=COLOR_PALETTE["secondary_hover"],
+                                     relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
+                                     command=self._show_compare_dialog, cursor="hand2")
         self.compare_btn.grid(row=0, column=2, sticky='ew')
 
-        # 説明ラベル
-        self.mode_desc_label = tk.Label(mode_card, text="→ PPTXからテキストを抽出して右に表示",
-                                        font=FONTS["caption"], fg=COLOR_PALETTE["text_muted"],
-                                        bg=COLOR_PALETTE["bg_secondary"])
-        self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(5, 0))
+        # 説明ラベル（ヒント）
+        self.mode_desc_label = tk.Label(mode_card, text="PPTXからテキストを抽出して編集",
+                                        font=FONTS["caption"], fg=COLOR_PALETTE["text_tertiary"],
+                                        bg=COLOR_PALETTE["bg_card"])
+        self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(SPACING["sm"], 0))
 
         # ファイル操作
         self.file_card = ttk.LabelFrame(frame, text=t('panel_file'), padding=SPACING["md"])
@@ -1187,57 +1345,75 @@ class InsightSlidesApp:
         self._switch_extract()
 
     def _create_extract_panel(self):
+        """抽出パネル - ファイル選択とオプション"""
         self.extract_frame = ttk.Frame(self.file_card)
         self.extract_frame.grid_columnconfigure(0, weight=1)
 
-        # 出力形式
+        # 出力形式（コンパクト）
         fmt_frame = ttk.Frame(self.extract_frame)
-        fmt_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-        ttk.Label(fmt_frame, text=t('setting_output_format')).pack(side='left')
+        fmt_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        ttk.Label(fmt_frame, text=t('setting_output_format'), style='Caption.TLabel').pack(side='left')
         self.output_format_var = tk.StringVar(value=self.config_manager.get('output_format', 'excel'))
         ttk.Combobox(fmt_frame, textvariable=self.output_format_var, values=['excel', 'tab', 'json'],
-                     state="readonly", width=12).pack(side='left', padx=5)
+                     state="readonly", width=10).pack(side='left', padx=SPACING["sm"])
 
         # メタデータ
         self.include_metadata_var = tk.BooleanVar(value=self.config_manager.get('include_metadata', True))
         ttk.Checkbutton(self.extract_frame, text=t('setting_include_meta'),
-                        variable=self.include_metadata_var).grid(row=1, column=0, sticky='w')
+                        variable=self.include_metadata_var).grid(row=1, column=0, sticky='w', pady=(0, SPACING["md"]))
 
-        # ボタン
-        tk.Button(self.extract_frame, text=f"📄 {t('btn_single_file')}", font=FONTS["body"],
-                  bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat",
-                  command=self._extract_single).grid(row=2, column=0, sticky='ew', pady=(SPACING["md"], SPACING["sm"]))
+        # プライマリボタン
+        tk.Button(self.extract_frame, text=t('btn_single_file'), font=FONTS["body_medium"],
+                  bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                  activebackground=COLOR_PALETTE["brand_hover"],
+                  padx=SPACING["lg"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._extract_single).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
+        # セカンダリボタン
         if self.license_manager.can_batch():
-            tk.Button(self.extract_frame, text=f"📁 {t('btn_batch_folder')}", font=FONTS["body"],
-                      bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                      command=self._extract_batch).grid(row=3, column=0, sticky='ew')
+            tk.Button(self.extract_frame, text=t('btn_batch_folder'), font=FONTS["body"],
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._extract_batch).grid(row=3, column=0, sticky='ew')
         else:
-            ttk.Label(self.extract_frame, text=f"📁 {t('btn_batch_folder')} (Standard+)",
-                      foreground=COLOR_PALETTE["text_muted"]).grid(row=3, column=0, sticky='w')
+            ttk.Label(self.extract_frame, text=f"{t('btn_batch_folder')} (Standard+)",
+                      style='Muted.TLabel').grid(row=3, column=0, sticky='w')
 
     def _create_update_panel(self):
+        """更新パネル - データソース選択"""
         self.update_frame = ttk.Frame(self.file_card)
         self.update_frame.grid_columnconfigure(0, weight=1)
 
+        # 制限注意
         limit = self.license_manager.get_update_limit()
         if limit:
-            ttk.Label(self.update_frame, text=t('msg_update_limit', limit),
-                      foreground=COLOR_PALETTE["warning"]).grid(row=0, column=0, sticky='w', pady=(0, SPACING["sm"]))
+            warn_frame = tk.Frame(self.update_frame, bg=COLOR_PALETTE["warning_light"], padx=SPACING["sm"], pady=SPACING["xs"])
+            warn_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
+            tk.Label(warn_frame, text=t('msg_update_limit', limit), font=FONTS["small"],
+                    fg=COLOR_PALETTE["warning"], bg=COLOR_PALETTE["warning_light"]).pack(anchor='w')
 
-        tk.Button(self.update_frame, text=f"📊 {t('btn_from_excel')}", font=FONTS["body"],
-                  bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat",
-                  command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+        # プライマリボタン
+        tk.Button(self.update_frame, text=t('btn_from_excel'), font=FONTS["body_medium"],
+                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
+                  activebackground="#047857",
+                  padx=SPACING["lg"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
-        tk.Button(self.update_frame, text=f"📄 {t('btn_from_json')}", font=FONTS["body"],
-                  bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                  command=self._update_json).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+        # セカンダリボタン
+        tk.Button(self.update_frame, text=t('btn_from_json'), font=FONTS["body"],
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  padx=SPACING["md"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
         # Pro機能: 差分プレビュー
         if self.license_manager.is_pro():
-            tk.Button(self.update_frame, text=f"👁 {t('btn_diff_preview')}", font=FONTS["body"],
-                      bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                      command=self._run_preview).grid(row=3, column=0, sticky='ew', pady=(SPACING["sm"], 0))
+            tk.Button(self.update_frame, text=t('btn_diff_preview'), font=FONTS["body"],
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._run_preview).grid(row=3, column=0, sticky='ew', pady=(SPACING["sm"], 0))
 
     def _create_advanced_options(self):
         # スピーカーノート
@@ -1272,28 +1448,24 @@ class InsightSlidesApp:
         self.config_manager.set('advanced_expanded', self.advanced_var.get())
 
     def _create_output(self, parent):
-        card = ttk.LabelFrame(parent, text=t('panel_output'), padding=SPACING["md"])
+        """右側メインコンテンツ - 出力表示エリア"""
+        card = ttk.LabelFrame(parent, text=t('panel_output'), padding=SPACING["lg"])
         card.grid(row=0, column=1, sticky='nsew')
         card.grid_columnconfigure(0, weight=1)
         card.grid_rowconfigure(2, weight=1)
 
-        # ファイル情報ヘッダー
-        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_elevated"], padx=12, pady=8,
-                                   highlightbackground=COLOR_PALETTE["border_light"], highlightthickness=1)
-        file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-
-        self.file_icon_label = tk.Label(file_info_frame, text="📄", font=FONTS["heading"],
-                                        bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["brand_primary"])
-        self.file_icon_label.pack(side='left')
+        # ファイル情報ヘッダー（シンプルに）
+        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_secondary"], padx=SPACING["md"], pady=SPACING["sm"])
+        file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
         self.file_name_label = tk.Label(file_info_frame, text="ファイルを選択してください",
-                                        font=FONTS["body_bold"], bg=COLOR_PALETTE["bg_elevated"],
-                                        fg=COLOR_PALETTE["text_primary"])
-        self.file_name_label.pack(side='left', padx=(8, 0))
+                                        font=FONTS["body_medium"], bg=COLOR_PALETTE["bg_secondary"],
+                                        fg=COLOR_PALETTE["text_secondary"])
+        self.file_name_label.pack(side='left')
 
         self.file_info_detail = tk.Label(file_info_frame, text="",
-                                         font=FONTS["caption"], bg=COLOR_PALETTE["bg_elevated"],
-                                         fg=COLOR_PALETTE["text_muted"])
+                                         font=FONTS["caption"], bg=COLOR_PALETTE["bg_secondary"],
+                                         fg=COLOR_PALETTE["text_tertiary"])
         self.file_info_detail.pack(side='right')
 
         # タブ切替
@@ -1306,11 +1478,14 @@ class InsightSlidesApp:
         log_frame.grid_columnconfigure(0, weight=1)
         log_frame.grid_rowconfigure(0, weight=1)
 
+        # ログは等幅フォントで
         self.output_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED,
-                                                      font=FONTS["body"],
-                                                      bg=COLOR_PALETTE["bg_primary"],
-                                                      fg=COLOR_PALETTE["text_primary"],
-                                                      insertbackground=COLOR_PALETTE["text_primary"])
+                                                      font=FONTS["mono"],
+                                                      bg=COLOR_PALETTE["bg_card"],
+                                                      fg=COLOR_PALETTE["text_secondary"],
+                                                      insertbackground=COLOR_PALETTE["text_primary"],
+                                                      relief="flat", bd=0,
+                                                      padx=SPACING["sm"], pady=SPACING["sm"])
         self.output_text.grid(row=0, column=0, sticky='nsew')
 
         # グリッドタブ
@@ -1322,17 +1497,23 @@ class InsightSlidesApp:
         self.grid_view = EditableGrid(grid_frame, on_change=self._on_grid_change)
         self.grid_view.grid(row=0, column=0, sticky='nsew')
 
-        # グリッド用ボタン
-        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_secondary"])
-        grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(8, 0))
+        # グリッド用ボタン（アクションバー）
+        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_card"])
+        grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(SPACING["md"], 0))
 
-        tk.Button(grid_btn_frame, text="  グリッドから更新適用  ", font=FONTS["body_bold"],
-                  bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat", padx=16, pady=6,
+        # プライマリアクション
+        tk.Button(grid_btn_frame, text="更新を適用", font=FONTS["body_medium"],
+                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
+                  padx=SPACING["lg"], pady=SPACING["sm"],
+                  activebackground="#047857",
                   cursor="hand2", command=self._apply_grid_to_pptx).pack(side='right')
 
-        tk.Button(grid_btn_frame, text="  Excelエクスポート  ", font=FONTS["body"],
-                  bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                  padx=12, pady=6, cursor="hand2", command=self._export_grid_excel).pack(side='right', padx=(0, 8))
+        # セカンダリアクション
+        tk.Button(grid_btn_frame, text="Excelエクスポート", font=FONTS["body"],
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  padx=SPACING["md"], pady=SPACING["sm"],
+                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  cursor="hand2", command=self._export_grid_excel).pack(side='right', padx=(0, SPACING["sm"]))
 
         self._show_welcome()
 
@@ -1404,22 +1585,24 @@ class InsightSlidesApp:
 
     # === Mode switching ===
     def _switch_extract(self):
+        """抽出モードに切替"""
         self.current_mode = "extract"
-        self.mode_label.configure(text=t('mode_extract'), fg=COLOR_PALETTE["brand_primary"])
-        self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat", bd=0)
-        self.update_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
-        self.compare_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
-        self.mode_desc_label.configure(text="→ PPTXからテキストを抽出して右に表示")
+        # ボタン状態更新
+        self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF")
+        self.update_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
+        self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
+        self.mode_desc_label.configure(text="PPTXからテキストを抽出して編集")
         self.update_frame.grid_remove()
         self.extract_frame.grid(row=0, column=0, sticky='nsew')
 
     def _switch_update(self):
+        """更新モードに切替"""
         self.current_mode = "update"
-        self.mode_label.configure(text=t('mode_update'), fg=COLOR_PALETTE["brand_update"])
-        self.extract_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
-        self.update_btn.configure(bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat", bd=0)
-        self.compare_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
-        self.mode_desc_label.configure(text="→ 右のグリッド内容でPPTXを上書き更新")
+        # ボタン状態更新
+        self.extract_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
+        self.update_btn.configure(bg=COLOR_PALETTE["action_update"], fg="#FFFFFF")
+        self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
+        self.mode_desc_label.configure(text="編集内容をPPTXに反映")
         self.extract_frame.grid_remove()
         self.update_frame.grid(row=0, column=0, sticky='nsew')
 
