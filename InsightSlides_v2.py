@@ -382,31 +382,31 @@ class LicenseManager:
 
 
 # ============== モダンデザインシステム ==============
-# ダークテーマ - コンサルタント品質
+# ホワイトテーマ - コンサルタント品質（const-dx-home風）
 COLOR_PALETTE = {
-    # 背景（ダークネイビー基調）
-    "bg_primary": "#0f172a",       # スレートダーク
-    "bg_secondary": "#1e293b",     # スレートミディアム
-    "bg_elevated": "#334155",      # スレートライト
-    "bg_card": "#1e293b",
-    "bg_input": "#0f172a",
+    # 背景（ホワイト基調・モダンビジネス）
+    "bg_primary": "#ffffff",       # ホワイト
+    "bg_secondary": "#f9fafb",     # グレー50
+    "bg_elevated": "#f3f4f6",      # グレー100
+    "bg_card": "#ffffff",
+    "bg_input": "#ffffff",
 
     # テキスト
-    "text_primary": "#f1f5f9",     # スレートホワイト
-    "text_secondary": "#cbd5e1",   # スレートグレー
-    "text_muted": "#64748b",       # スレートミュート
+    "text_primary": "#111827",     # グレー900
+    "text_secondary": "#4b5563",   # グレー600
+    "text_muted": "#9ca3af",       # グレー400
 
-    # ブランドカラー
-    "brand_primary": "#3b82f6",    # ブルー
-    "brand_hover": "#60a5fa",
-    "brand_update": "#10b981",     # エメラルド
-    "brand_compare": "#a78bfa",    # パープル
+    # ブランドカラー（オレンジアクセント）
+    "brand_primary": "#FF6B35",    # オレンジ
+    "brand_hover": "#ff8c5a",
+    "brand_update": "#10b981",     # エメラルド（更新）
+    "brand_compare": "#8b5cf6",    # パープル（比較）
 
     # ステータス
     "success": "#10b981", "warning": "#f59e0b", "error": "#ef4444",
 
     # ボーダー
-    "border_light": "#334155", "border_medium": "#475569",
+    "border_light": "#e5e7eb", "border_medium": "#d1d5db",
 
     # 差分
     "diff_changed": "#fef3c7", "diff_added": "#d1fae5", "diff_removed": "#fee2e2",
@@ -987,9 +987,10 @@ class InsightSlidesApp:
         self.style.configure('Main.TFrame', background=COLOR_PALETTE["bg_primary"])
         self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_secondary"])
 
-        # ラベルフレーム（ダークテーマ）
+        # ラベルフレーム
         self.style.configure('TLabelframe', background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"])
+                            foreground=COLOR_PALETTE["text_primary"],
+                            bordercolor=COLOR_PALETTE["border_light"])
         self.style.configure('TLabelframe.Label', background=COLOR_PALETTE["bg_secondary"],
                             foreground=COLOR_PALETTE["text_primary"], font=FONTS["body_bold"])
 
@@ -1007,10 +1008,13 @@ class InsightSlidesApp:
 
         # コンボボックス
         self.style.configure('TCombobox', fieldbackground=COLOR_PALETTE["bg_input"],
-                            background=COLOR_PALETTE["bg_elevated"])
+                            background=COLOR_PALETTE["bg_elevated"],
+                            foreground=COLOR_PALETTE["text_primary"])
 
         # エントリ
-        self.style.configure('TEntry', fieldbackground=COLOR_PALETTE["bg_input"])
+        self.style.configure('TEntry', fieldbackground=COLOR_PALETTE["bg_input"],
+                            foreground=COLOR_PALETTE["text_primary"],
+                            bordercolor=COLOR_PALETTE["border_light"])
 
         # Notebook（タブ）
         self.style.configure('TNotebook', background=COLOR_PALETTE["bg_primary"])
@@ -1119,23 +1123,26 @@ class InsightSlidesApp:
 
         self.extract_btn = tk.Button(mode_card, text=f"📤 {t('mode_extract_short')}", font=FONTS["body_bold"],
                                      bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat",
-                                     command=self._switch_extract, cursor="hand2")
+                                     activebackground=COLOR_PALETTE["brand_hover"], activeforeground="white",
+                                     command=self._switch_extract, cursor="hand2", pady=8)
         self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, 3))
 
         self.update_btn = tk.Button(mode_card, text=f"📥 {t('mode_update_short')}", font=FONTS["body_bold"],
-                                    bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                                    command=self._switch_update, cursor="hand2")
+                                    bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"],
+                                    relief="solid", bd=1, highlightbackground=COLOR_PALETTE["border_medium"],
+                                    command=self._switch_update, cursor="hand2", pady=8)
         self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, 3))
 
         self.compare_btn = tk.Button(mode_card, text="🔀 比較", font=FONTS["body_bold"],
-                                     bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                                     command=self._show_compare_dialog, cursor="hand2")
+                                     bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"],
+                                     relief="solid", bd=1, highlightbackground=COLOR_PALETTE["border_medium"],
+                                     command=self._show_compare_dialog, cursor="hand2", pady=8)
         self.compare_btn.grid(row=0, column=2, sticky='ew')
 
         # 説明ラベル
         self.mode_desc_label = tk.Label(mode_card, text="→ PPTXからテキストを抽出して右に表示",
                                         font=FONTS["caption"], fg=COLOR_PALETTE["text_muted"],
-                                        bg=COLOR_PALETTE["bg_elevated"])
+                                        bg=COLOR_PALETTE["bg_secondary"])
         self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
         # ファイル操作
@@ -1271,7 +1278,8 @@ class InsightSlidesApp:
         card.grid_rowconfigure(2, weight=1)
 
         # ファイル情報ヘッダー
-        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_elevated"], padx=12, pady=8)
+        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_elevated"], padx=12, pady=8,
+                                   highlightbackground=COLOR_PALETTE["border_light"], highlightthickness=1)
         file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
         self.file_icon_label = tk.Label(file_info_frame, text="📄", font=FONTS["heading"],
@@ -1398,9 +1406,9 @@ class InsightSlidesApp:
     def _switch_extract(self):
         self.current_mode = "extract"
         self.mode_label.configure(text=t('mode_extract'), fg=COLOR_PALETTE["brand_primary"])
-        self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="white")
-        self.update_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
-        self.compare_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
+        self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat", bd=0)
+        self.update_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
+        self.compare_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
         self.mode_desc_label.configure(text="→ PPTXからテキストを抽出して右に表示")
         self.update_frame.grid_remove()
         self.extract_frame.grid(row=0, column=0, sticky='nsew')
@@ -1408,9 +1416,9 @@ class InsightSlidesApp:
     def _switch_update(self):
         self.current_mode = "update"
         self.mode_label.configure(text=t('mode_update'), fg=COLOR_PALETTE["brand_update"])
-        self.extract_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
-        self.update_btn.configure(bg=COLOR_PALETTE["brand_update"], fg="white")
-        self.compare_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
+        self.extract_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
+        self.update_btn.configure(bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat", bd=0)
+        self.compare_btn.configure(bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="solid", bd=1)
         self.mode_desc_label.configure(text="→ 右のグリッド内容でPPTXを上書き更新")
         self.extract_frame.grid_remove()
         self.update_frame.grid(row=0, column=0, sticky='nsew')
