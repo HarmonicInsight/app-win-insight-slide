@@ -382,31 +382,31 @@ class LicenseManager:
 
 
 # ============== モダンデザインシステム ==============
-# ホワイトテーマ - コンサルタント品質（const-dx-home風）
+# ホワイトテーマ - シンプルブルー（InsightExtract風）
 COLOR_PALETTE = {
-    # 背景（ホワイト基調・モダンビジネス）
+    # 背景（ホワイト基調・シンプル）
     "bg_primary": "#ffffff",       # ホワイト
-    "bg_secondary": "#f9fafb",     # グレー50
-    "bg_elevated": "#f3f4f6",      # グレー100
+    "bg_secondary": "#f8fafc",     # スレート50
+    "bg_elevated": "#f1f5f9",      # スレート100
     "bg_card": "#ffffff",
     "bg_input": "#ffffff",
 
     # テキスト
-    "text_primary": "#111827",     # グレー900
-    "text_secondary": "#4b5563",   # グレー600
-    "text_muted": "#9ca3af",       # グレー400
+    "text_primary": "#1e293b",     # スレート800
+    "text_secondary": "#475569",   # スレート600
+    "text_muted": "#94a3b8",       # スレート400
 
-    # ブランドカラー（オレンジアクセント）
-    "brand_primary": "#FF6B35",    # オレンジ
-    "brand_hover": "#ff8c5a",
-    "brand_update": "#10b981",     # エメラルド（更新）
-    "brand_compare": "#8b5cf6",    # パープル（比較）
+    # ブランドカラー（ブルー基調）
+    "brand_primary": "#2563eb",    # ブルー600
+    "brand_hover": "#3b82f6",      # ブルー500
+    "brand_update": "#0d9488",     # ティール600
+    "brand_compare": "#7c3aed",    # バイオレット600
 
     # ステータス
     "success": "#10b981", "warning": "#f59e0b", "error": "#ef4444",
 
     # ボーダー
-    "border_light": "#e5e7eb", "border_medium": "#d1d5db",
+    "border_light": "#e2e8f0", "border_medium": "#cbd5e1",
 
     # 差分
     "diff_changed": "#fef3c7", "diff_added": "#d1fae5", "diff_removed": "#fee2e2",
