@@ -381,22 +381,43 @@ class LicenseManager:
         return self.get_tier_info().get('pro', False)
 
 
-# ============== デザインシステム ==============
+# ============== モダンデザインシステム ==============
+# ダークテーマ - コンサルタント品質
 COLOR_PALETTE = {
-    "bg_primary": "#FAFBFC", "bg_secondary": "#F3F4F6", "bg_elevated": "#FFFFFF",
-    "text_primary": "#1A202C", "text_secondary": "#4A5568", "text_muted": "#718096",
-    "brand_primary": "#1E40AF", "brand_update": "#0D9488",
-    "success": "#059669", "warning": "#D97706", "error": "#DC2626",
-    "border_light": "#E5E7EB", "border_medium": "#D1D5DB",
-    "diff_changed": "#FEF3C7", "diff_added": "#D1FAE5", "diff_removed": "#FEE2E2",
+    # 背景（ダークネイビー基調）
+    "bg_primary": "#0f172a",       # スレートダーク
+    "bg_secondary": "#1e293b",     # スレートミディアム
+    "bg_elevated": "#334155",      # スレートライト
+    "bg_card": "#1e293b",
+    "bg_input": "#0f172a",
+
+    # テキスト
+    "text_primary": "#f1f5f9",     # スレートホワイト
+    "text_secondary": "#cbd5e1",   # スレートグレー
+    "text_muted": "#64748b",       # スレートミュート
+
+    # ブランドカラー
+    "brand_primary": "#3b82f6",    # ブルー
+    "brand_hover": "#60a5fa",
+    "brand_update": "#10b981",     # エメラルド
+    "brand_compare": "#a78bfa",    # パープル
+
+    # ステータス
+    "success": "#10b981", "warning": "#f59e0b", "error": "#ef4444",
+
+    # ボーダー
+    "border_light": "#334155", "border_medium": "#475569",
+
+    # 差分
+    "diff_changed": "#fef3c7", "diff_added": "#d1fae5", "diff_removed": "#fee2e2",
 }
 
-FONT_FAMILY = "Yu Gothic UI"
+FONT_FAMILY = "Segoe UI"
 
 def get_fonts(size_preset: str = 'medium') -> dict:
     base = {'small': 10, 'medium': 11, 'large': 13}.get(size_preset, 11)
     return {
-        "display": (FONT_FAMILY, base + 9, "bold"),
+        "display": (FONT_FAMILY, base + 10, "bold"),
         "heading": (FONT_FAMILY, base + 3, "bold"),
         "subheading": (FONT_FAMILY, base + 1, "bold"),
         "body": (FONT_FAMILY, base, "normal"),
@@ -406,7 +427,7 @@ def get_fonts(size_preset: str = 'medium') -> dict:
     }
 
 FONTS = get_fonts('medium')
-SPACING = {"xs": 2, "sm": 4, "md": 8, "lg": 12, "xl": 16}
+SPACING = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24}
 
 
 class ConfigManager:
@@ -961,8 +982,59 @@ class InsightSlidesApp:
     def _apply_styles(self):
         self.style = ttk.Style()
         self.style.theme_use('clam')
+
+        # フレーム
         self.style.configure('Main.TFrame', background=COLOR_PALETTE["bg_primary"])
-        self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_elevated"])
+        self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_secondary"])
+
+        # ラベルフレーム（ダークテーマ）
+        self.style.configure('TLabelframe', background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_primary"])
+        self.style.configure('TLabelframe.Label', background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_primary"], font=FONTS["body_bold"])
+
+        # ラベル
+        self.style.configure('TLabel', background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_primary"])
+
+        # ボタン
+        self.style.configure('TButton', background=COLOR_PALETTE["bg_elevated"],
+                            foreground=COLOR_PALETTE["text_primary"], padding=(12, 6))
+
+        # チェックボックス
+        self.style.configure('TCheckbutton', background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_primary"])
+
+        # コンボボックス
+        self.style.configure('TCombobox', fieldbackground=COLOR_PALETTE["bg_input"],
+                            background=COLOR_PALETTE["bg_elevated"])
+
+        # エントリ
+        self.style.configure('TEntry', fieldbackground=COLOR_PALETTE["bg_input"])
+
+        # Notebook（タブ）
+        self.style.configure('TNotebook', background=COLOR_PALETTE["bg_primary"])
+        self.style.configure('TNotebook.Tab', background=COLOR_PALETTE["bg_secondary"],
+                            foreground=COLOR_PALETTE["text_primary"], padding=(16, 8))
+        self.style.map('TNotebook.Tab',
+                      background=[('selected', COLOR_PALETTE["brand_primary"])],
+                      foreground=[('selected', '#ffffff')])
+
+        # プログレスバー
+        self.style.configure('TProgressbar', background=COLOR_PALETTE["brand_primary"],
+                            troughcolor=COLOR_PALETTE["bg_elevated"])
+
+        # Treeview（グリッド）
+        self.style.configure('Treeview',
+                            background=COLOR_PALETTE["bg_primary"],
+                            foreground=COLOR_PALETTE["text_primary"],
+                            fieldbackground=COLOR_PALETTE["bg_primary"],
+                            rowheight=28)
+        self.style.configure('Treeview.Heading',
+                            background=COLOR_PALETTE["bg_elevated"],
+                            foreground=COLOR_PALETTE["text_primary"],
+                            font=FONTS["body_bold"])
+        self.style.map('Treeview', background=[('selected', COLOR_PALETTE["brand_primary"])])
 
     def _create_menu(self):
         menubar = tk.Menu(self.root)
@@ -1196,25 +1268,46 @@ class InsightSlidesApp:
         card = ttk.LabelFrame(parent, text=t('panel_output'), padding=SPACING["md"])
         card.grid(row=0, column=1, sticky='nsew')
         card.grid_columnconfigure(0, weight=1)
-        card.grid_rowconfigure(1, weight=1)
+        card.grid_rowconfigure(2, weight=1)
+
+        # ファイル情報ヘッダー
+        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_elevated"], padx=12, pady=8)
+        file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+
+        self.file_icon_label = tk.Label(file_info_frame, text="📄", font=FONTS["heading"],
+                                        bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["brand_primary"])
+        self.file_icon_label.pack(side='left')
+
+        self.file_name_label = tk.Label(file_info_frame, text="ファイルを選択してください",
+                                        font=FONTS["body_bold"], bg=COLOR_PALETTE["bg_elevated"],
+                                        fg=COLOR_PALETTE["text_primary"])
+        self.file_name_label.pack(side='left', padx=(8, 0))
+
+        self.file_info_detail = tk.Label(file_info_frame, text="",
+                                         font=FONTS["caption"], bg=COLOR_PALETTE["bg_elevated"],
+                                         fg=COLOR_PALETTE["text_muted"])
+        self.file_info_detail.pack(side='right')
 
         # タブ切替
         self.output_notebook = ttk.Notebook(card)
-        self.output_notebook.grid(row=0, column=0, sticky='nsew', rowspan=2)
+        self.output_notebook.grid(row=1, column=0, sticky='nsew', rowspan=2)
 
         # ログタブ
         log_frame = ttk.Frame(self.output_notebook)
-        self.output_notebook.add(log_frame, text="📋 ログ")
+        self.output_notebook.add(log_frame, text="  ログ  ")
         log_frame.grid_columnconfigure(0, weight=1)
         log_frame.grid_rowconfigure(0, weight=1)
 
         self.output_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED,
-                                                      font=FONTS["body"], bg=COLOR_PALETTE["bg_secondary"])
+                                                      font=FONTS["body"],
+                                                      bg=COLOR_PALETTE["bg_primary"],
+                                                      fg=COLOR_PALETTE["text_primary"],
+                                                      insertbackground=COLOR_PALETTE["text_primary"])
         self.output_text.grid(row=0, column=0, sticky='nsew')
 
         # グリッドタブ
         grid_frame = ttk.Frame(self.output_notebook)
-        self.output_notebook.add(grid_frame, text="📊 グリッド編集")
+        self.output_notebook.add(grid_frame, text="  グリッド編集  ")
         grid_frame.grid_columnconfigure(0, weight=1)
         grid_frame.grid_rowconfigure(0, weight=1)
 
@@ -1222,16 +1315,26 @@ class InsightSlidesApp:
         self.grid_view.grid(row=0, column=0, sticky='nsew')
 
         # グリッド用ボタン
-        grid_btn_frame = ttk.Frame(grid_frame)
-        grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(5, 0))
+        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_secondary"])
+        grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(8, 0))
 
-        tk.Button(grid_btn_frame, text="📥 グリッドから更新適用", font=FONTS["body"],
-                  bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat",
-                  command=self._apply_grid_to_pptx).pack(side='right')
+        tk.Button(grid_btn_frame, text="  グリッドから更新適用  ", font=FONTS["body_bold"],
+                  bg=COLOR_PALETTE["brand_update"], fg="white", relief="flat", padx=16, pady=6,
+                  cursor="hand2", command=self._apply_grid_to_pptx).pack(side='right')
 
-        ttk.Button(grid_btn_frame, text="📄 Excelエクスポート", command=self._export_grid_excel).pack(side='right', padx=5)
+        tk.Button(grid_btn_frame, text="  Excelエクスポート  ", font=FONTS["body"],
+                  bg=COLOR_PALETTE["bg_elevated"], fg=COLOR_PALETTE["text_primary"], relief="flat",
+                  padx=12, pady=6, cursor="hand2", command=self._export_grid_excel).pack(side='right', padx=(0, 8))
 
         self._show_welcome()
+
+    def _update_file_info(self, filename: str, item_count: int = 0, slide_count: int = 0):
+        """ファイル情報ヘッダーを更新"""
+        self.file_name_label.configure(text=filename)
+        if item_count > 0:
+            self.file_info_detail.configure(text=f"{slide_count}スライド / {item_count}項目")
+        else:
+            self.file_info_detail.configure(text="")
 
     def _show_welcome(self):
         tier = self.license_manager.get_tier_info()
@@ -1456,6 +1559,11 @@ class InsightSlidesApp:
                     return self._log("キャンセルされました", "warning")
 
                 if data:
+                    # ファイル情報を更新
+                    filename = os.path.basename(path)
+                    slide_count = meta.get('slide_count', 0)
+                    self.root.after(0, lambda: self._update_file_info(filename, len(data), slide_count))
+
                     # グリッドにロード
                     self.extracted_data = data
                     self.root.after(0, lambda: self.grid_view.load_data(data))
