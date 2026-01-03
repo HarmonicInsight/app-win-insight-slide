@@ -58,13 +58,13 @@ LANGUAGES = {
         'welcome_title': 'Welcome to Insight Slides!',
         'mode_extract': 'Extract Mode',
         'mode_update': 'Update Mode',
-        'mode_extract_short': 'Extract',
-        'mode_update_short': 'Update',
+        'mode_extract_short': 'Extract Text',
+        'mode_update_short': 'Overwrite',
         'panel_mode': 'Mode Selection',
         'panel_file': 'File Operations',
         'panel_settings': 'Settings',
         'panel_status': 'Status',
-        'panel_output': 'Output',
+        'panel_output': 'Extracted Data',
         'panel_extract_options': 'Extract Options',
         'panel_update_options': 'Update Options',
         'panel_extract_run': 'Run Extract',
@@ -147,13 +147,13 @@ LANGUAGES = {
         'welcome_title': 'Insight Slides へようこそ！',
         'mode_extract': '抽出モード',
         'mode_update': '更新モード',
-        'mode_extract_short': '抽出',
-        'mode_update_short': '更新',
+        'mode_extract_short': 'テキスト抽出',
+        'mode_update_short': '上書き更新',
         'panel_mode': 'モード選択',
         'panel_file': 'ファイル操作',
         'panel_settings': '処理設定',
         'panel_status': '処理状況',
-        'panel_output': '処理結果',
+        'panel_output': '抽出結果',
         'panel_extract_options': '抽出オプション',
         'panel_update_options': '更新オプション',
         'panel_extract_run': '抽出実行',
@@ -1036,23 +1036,35 @@ class InsightSlidesApp:
     def _create_controls(self, parent):
         frame = ttk.Frame(parent, style='Main.TFrame')
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["lg"]))
-        frame.grid_rowconfigure(3, weight=1)
+        frame.grid_rowconfigure(4, weight=1)
 
-        # モード切替
-        mode_card = ttk.LabelFrame(frame, text=t('panel_mode'), padding=SPACING["md"])
+        # モード切替（3ボタン: 抽出/更新/比較）
+        mode_card = ttk.LabelFrame(frame, text="操作モード", padding=SPACING["md"])
         mode_card.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
         mode_card.grid_columnconfigure(0, weight=1)
         mode_card.grid_columnconfigure(1, weight=1)
+        mode_card.grid_columnconfigure(2, weight=1)
 
-        self.extract_btn = tk.Button(mode_card, text=f"↑ {t('mode_extract_short')}", font=FONTS["body_bold"],
+        self.extract_btn = tk.Button(mode_card, text=f"📤 {t('mode_extract_short')}", font=FONTS["body_bold"],
                                      bg=COLOR_PALETTE["brand_primary"], fg="white", relief="flat",
-                                     command=self._switch_extract)
-        self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, 5))
+                                     command=self._switch_extract, cursor="hand2")
+        self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, 3))
 
-        self.update_btn = tk.Button(mode_card, text=f"↓ {t('mode_update_short')}", font=FONTS["body_bold"],
+        self.update_btn = tk.Button(mode_card, text=f"📥 {t('mode_update_short')}", font=FONTS["body_bold"],
                                     bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                                    command=self._switch_update)
-        self.update_btn.grid(row=0, column=1, sticky='ew')
+                                    command=self._switch_update, cursor="hand2")
+        self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, 3))
+
+        self.compare_btn = tk.Button(mode_card, text="🔀 比較", font=FONTS["body_bold"],
+                                     bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
+                                     command=self._show_compare_dialog, cursor="hand2")
+        self.compare_btn.grid(row=0, column=2, sticky='ew')
+
+        # 説明ラベル
+        self.mode_desc_label = tk.Label(mode_card, text="→ PPTXからテキストを抽出して右に表示",
+                                        font=FONTS["caption"], fg=COLOR_PALETTE["text_muted"],
+                                        bg=COLOR_PALETTE["bg_elevated"])
+        self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
         # ファイル操作
         self.file_card = ttk.LabelFrame(frame, text=t('panel_file'), padding=SPACING["md"])
@@ -1078,7 +1090,7 @@ class InsightSlidesApp:
 
         # ステータス
         status_frame = ttk.Frame(frame, style='Main.TFrame')
-        status_frame.grid(row=3, column=0, sticky='sew')
+        status_frame.grid(row=4, column=0, sticky='sew')
 
         self.status_label = ttk.Label(status_frame, text=t('status_waiting'), font=FONTS["caption"])
         self.status_label.pack(anchor='w')
@@ -1142,16 +1154,11 @@ class InsightSlidesApp:
                   bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
                   command=self._update_json).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
-        # 比較機能
-        tk.Button(self.update_frame, text=f"🔀 {t('btn_compare_pptx')}", font=FONTS["body"],
-                  bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                  command=self._show_compare_dialog).grid(row=3, column=0, sticky='ew', pady=(SPACING["md"], 0))
-
-        # Pro機能
+        # Pro機能: 差分プレビュー
         if self.license_manager.is_pro():
             tk.Button(self.update_frame, text=f"👁 {t('btn_diff_preview')}", font=FONTS["body"],
                       bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"], relief="flat",
-                      command=self._run_preview).grid(row=4, column=0, sticky='ew', pady=(SPACING["sm"], 0))
+                      command=self._run_preview).grid(row=3, column=0, sticky='ew', pady=(SPACING["sm"], 0))
 
     def _create_advanced_options(self):
         # スピーカーノート
@@ -1290,6 +1297,8 @@ class InsightSlidesApp:
         self.mode_label.configure(text=t('mode_extract'), fg=COLOR_PALETTE["brand_primary"])
         self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="white")
         self.update_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
+        self.compare_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
+        self.mode_desc_label.configure(text="→ PPTXからテキストを抽出して右に表示")
         self.update_frame.grid_remove()
         self.extract_frame.grid(row=0, column=0, sticky='nsew')
 
@@ -1298,6 +1307,8 @@ class InsightSlidesApp:
         self.mode_label.configure(text=t('mode_update'), fg=COLOR_PALETTE["brand_update"])
         self.extract_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
         self.update_btn.configure(bg=COLOR_PALETTE["brand_update"], fg="white")
+        self.compare_btn.configure(bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_primary"])
+        self.mode_desc_label.configure(text="→ 右のグリッド内容でPPTXを上書き更新")
         self.extract_frame.grid_remove()
         self.update_frame.grid(row=0, column=0, sticky='nsew')
 
