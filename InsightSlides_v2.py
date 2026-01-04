@@ -590,6 +590,7 @@ class EditableGrid(ttk.Frame):
         toolbar.pack(fill="x", pady=(0, 5))
 
         # フィルタ
+        ttk.Label(toolbar, text="フィルタ:").pack(side="left", padx=(0, 5))
         self.filter_var = tk.StringVar()
         self.filter_entry = ttk.Entry(toolbar, textvariable=self.filter_var, width=20)
         self.filter_entry.pack(side="left", padx=(0, 5))
@@ -936,8 +937,10 @@ class CompareResultWindow:
         bottom.pack(fill='x')
         ttk.Button(bottom, text="全て元", command=lambda: self._select_all("before")).pack(side='left', padx=2)
         ttk.Button(bottom, text="全て新", command=lambda: self._select_all("after")).pack(side='left', padx=2)
-        tk.Button(bottom, text="選択を反映 →", bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
-                  command=self._apply).pack(side='right', padx=5)
+        tk.Button(bottom, text="選択を反映", font=(FONT_FAMILY_SANS, 10),
+                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
+                  activebackground="#047857", padx=SPACING["lg"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._apply).pack(side='right', padx=5)
         ttk.Button(bottom, text="閉じる", command=self.window.destroy).pack(side='right')
 
     def _refresh(self):
@@ -1310,25 +1313,17 @@ class InsightSlidesApp:
         self.extract_frame = ttk.Frame(self.file_card)
         self.extract_frame.grid_columnconfigure(0, weight=1)
 
-        # 出力形式（コンパクト）
-        fmt_frame = ttk.Frame(self.extract_frame)
-        fmt_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        ttk.Label(fmt_frame, text=t('setting_output_format'), style='Caption.TLabel').pack(side='left')
-        self.output_format_var = tk.StringVar(value=self.config_manager.get('output_format', 'excel'))
-        ttk.Combobox(fmt_frame, textvariable=self.output_format_var, values=['excel', 'tab', 'json'],
-                     state="readonly", width=10).pack(side='left', padx=SPACING["sm"])
-
         # メタデータ
         self.include_metadata_var = tk.BooleanVar(value=self.config_manager.get('include_metadata', True))
         ttk.Checkbutton(self.extract_frame, text=t('setting_include_meta'),
-                        variable=self.include_metadata_var).grid(row=1, column=0, sticky='w', pady=(0, SPACING["md"]))
+                        variable=self.include_metadata_var).grid(row=0, column=0, sticky='w', pady=(0, SPACING["md"]))
 
         # プライマリボタン
         tk.Button(self.extract_frame, text=t('btn_single_file'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
                   activebackground=COLOR_PALETTE["brand_hover"],
                   padx=SPACING["lg"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._extract_single).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+                  cursor="hand2", command=self._extract_single).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
         # セカンダリボタン
         if self.license_manager.can_batch():
@@ -1336,10 +1331,10 @@ class InsightSlidesApp:
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                       activebackground=COLOR_PALETTE["secondary_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._extract_batch).grid(row=3, column=0, sticky='ew')
+                      cursor="hand2", command=self._extract_batch).grid(row=2, column=0, sticky='ew')
         else:
             ttk.Label(self.extract_frame, text=f"{t('btn_batch_folder')} (Standard+)",
-                      style='Muted.TLabel').grid(row=3, column=0, sticky='w')
+                      style='Muted.TLabel').grid(row=2, column=0, sticky='w')
 
     def _create_update_panel(self):
         """更新パネル - データソース選択"""
@@ -1462,13 +1457,21 @@ class InsightSlidesApp:
                   cursor="hand2", command=self._apply_grid_to_pptx, state='disabled')
         self.apply_btn.pack(side='right')
 
-        # セカンダリアクション
-        self.export_btn = tk.Button(action_bar, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
+        # エクスポートボタン（Excel）
+        self.export_excel_btn = tk.Button(action_bar, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
                   activebackground=COLOR_PALETTE["secondary_hover"],
                   cursor="hand2", command=self._export_grid_excel, state='disabled')
-        self.export_btn.pack(side='right', padx=(0, SPACING["sm"]))
+        self.export_excel_btn.pack(side='right', padx=(0, SPACING["sm"]))
+
+        # エクスポートボタン（JSON）
+        self.export_json_btn = tk.Button(action_bar, text="JSONエクスポート", font=(FONT_FAMILY_SANS, 10),
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  padx=SPACING["md"], pady=SPACING["sm"],
+                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  cursor="hand2", command=self._export_grid_json, state='disabled')
+        self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
     def _create_welcome_guide(self):
         """初期状態のウェルカムガイド"""
@@ -1503,14 +1506,16 @@ class InsightSlidesApp:
         self.welcome_frame.grid_remove()
         self.grid_container.grid(row=0, column=0, sticky='nsew')
         self.apply_btn.configure(state='normal')
-        self.export_btn.configure(state='normal')
+        self.export_excel_btn.configure(state='normal')
+        self.export_json_btn.configure(state='normal')
 
     def _show_welcome_area(self):
         """グリッドを隠してウェルカムガイドを表示"""
         self.grid_container.grid_remove()
         self.welcome_frame.grid(row=0, column=0, sticky='nsew')
         self.apply_btn.configure(state='disabled')
-        self.export_btn.configure(state='disabled')
+        self.export_excel_btn.configure(state='disabled')
+        self.export_json_btn.configure(state='disabled')
         self.file_name_label.configure(text="")
         self.file_info_detail.configure(text="")
 
@@ -1822,11 +1827,9 @@ class InsightSlidesApp:
                     self.root.after(0, lambda: self.grid_view.load_data(data))
                     self.root.after(0, lambda: self._show_edit_area())
 
-                    # ファイル保存
-                    fmt = self.output_format_var.get()
-                    ext = {"excel": ".xlsx", "json": ".json"}.get(fmt, ".txt")
-                    out = os.path.splitext(path)[0] + "_抽出" + ext
-                    if self.save_to_file(data, out, fmt):
+                    # ファイル保存（デフォルトはExcel）
+                    out = os.path.splitext(path)[0] + "_抽出.xlsx"
+                    if self.save_to_file(data, out, "excel"):
                         self._log(f"✅ 抽出完了: {len(data)}件 → {os.path.basename(out)}", "success")
                         self._update_status_safe(f"完了: {len(data)}件")
                 else:
@@ -1866,10 +1869,8 @@ class InsightSlidesApp:
                     self._log(f"[{i}/{len(files)}] {f.name}")
                     data, meta = self.extract_from_ppt(str(f), include_notes)
                     if data:
-                        fmt = self.output_format_var.get()
-                        ext = {"excel": ".xlsx", "json": ".json"}.get(fmt, ".txt")
-                        out = str(f.with_suffix('')) + "_抽出" + ext
-                        self.save_to_file(data, out, fmt)
+                        out = str(f.with_suffix('')) + "_抽出.xlsx"
+                        self.save_to_file(data, out, "excel")
                         total += len(data)
 
                 self._log(f"✅ バッチ抽出完了: {total}件", "success")
@@ -2182,6 +2183,19 @@ class InsightSlidesApp:
             return
 
         if self.save_to_file(data, path, "excel"):
+            messagebox.showinfo("完了", f"エクスポート完了: {path}")
+
+    def _export_grid_json(self):
+        data = self.grid_view.get_data()
+        if not data:
+            messagebox.showwarning("警告", "エクスポートするデータがありません")
+            return
+
+        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
+        if not path:
+            return
+
+        if self.save_to_file(data, path, "json"):
             messagebox.showinfo("完了", f"エクスポート完了: {path}")
 
     # === Dialogs ===
