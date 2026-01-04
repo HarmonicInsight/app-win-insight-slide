@@ -1120,10 +1120,22 @@ class InsightSlidesApp:
                             troughcolor=BG, bordercolor=BG)
 
     def _create_menu(self):
-        menubar = tk.Menu(self.root)
+        # メニュースタイル設定
+        menu_font = (FONT_FAMILY_SANS, 9)
+        menu_style = {
+            'font': menu_font,
+            'bg': COLOR_PALETTE["bg_primary"],
+            'fg': COLOR_PALETTE["text_primary"],
+            'activebackground': COLOR_PALETTE["brand_primary"],
+            'activeforeground': '#FFFFFF',
+            'relief': 'flat',
+            'bd': 0,
+        }
+
+        menubar = tk.Menu(self.root, **menu_style)
         self.root.config(menu=menubar)
 
-        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu = tk.Menu(menubar, tearoff=0, **menu_style)
         menubar.add_cascade(label=t('menu_help'), menu=help_menu)
         help_menu.add_command(label=t('menu_guide'), command=lambda: webbrowser.open(SUPPORT_LINKS["tutorial"]))
         help_menu.add_command(label=t('menu_faq'), command=lambda: webbrowser.open(SUPPORT_LINKS["faq"]))
@@ -1131,7 +1143,7 @@ class InsightSlidesApp:
         help_menu.add_command(label=t('menu_license'), command=self._show_license_dialog)
         help_menu.add_separator()
 
-        lang_menu = tk.Menu(help_menu, tearoff=0)
+        lang_menu = tk.Menu(help_menu, tearoff=0, **menu_style)
         help_menu.add_cascade(label=t('lang_menu'), menu=lang_menu)
         lang_menu.add_command(label="English", command=lambda: self._change_language('en'))
         lang_menu.add_command(label="日本語", command=lambda: self._change_language('ja'))
