@@ -439,9 +439,9 @@ COLOR_PALETTE = {
     "diff_removed": "#FEE2E2",
 }
 
-# フォント設定（階層化）
-FONT_FAMILY_SANS = "Segoe UI"       # メインフォント
-FONT_FAMILY_MONO = "Consolas"       # 等幅フォント（ログ・コード）
+# フォント設定（日本語対応）
+FONT_FAMILY_SANS = "Yu Gothic UI"    # 日本語対応フォント（Windows 10+）
+FONT_FAMILY_MONO = "Consolas"        # 等幅フォント（ログ・コード）
 
 def get_fonts(size_preset: str = 'medium') -> dict:
     base = {'small': 10, 'medium': 11, 'large': 13}.get(size_preset, 11)
