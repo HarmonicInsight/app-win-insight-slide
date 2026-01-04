@@ -141,6 +141,47 @@ LANGUAGES = {
         'advanced_options': 'Advanced Options',
         'type_notes': 'Notes',
         'filter_placeholder': 'Filter text...',
+        # UI elements
+        'mode_section': 'Mode',
+        'btn_compare': '2-File Compare',
+        'show_detail': 'Show details',
+        'welcome_guide_title': 'Edit PowerPoint Text',
+        'guide_step1': 'Select a PPTX file from the left panel',
+        'guide_step2': 'Text will be displayed in a list',
+        'guide_step3': 'Double-click a cell to edit',
+        'guide_step4': 'Click "Apply" to update PPTX',
+        'btn_apply': 'Apply',
+        'btn_export_excel': 'Excel Export',
+        'btn_export_json': 'JSON Export',
+        'filter_label': 'Filter:',
+        'mode_desc_extract': 'Extract text from PPTX for editing',
+        'mode_desc_update': 'Apply edited data to PPTX',
+        # Grid toolbar
+        'btn_clear_grid': 'Clear',
+        'btn_replace_all': 'Replace All',
+        'btn_undo': 'Undo',
+        'btn_redo': 'Redo',
+        # Replace dialog
+        'replace_search': 'Search:',
+        'replace_with': 'Replace:',
+        'btn_replace': 'Replace',
+        # Compare dialog
+        'compare_title': 'Compare 2 PowerPoint files',
+        'compare_file1': 'Original:',
+        'compare_file2': 'New file:',
+        'btn_browse': 'Browse',
+        'compare_ignore_ws': 'Ignore whitespace',
+        'btn_run_compare': 'Compare',
+        # Compare result
+        'btn_export_csv': 'CSV Export',
+        'header_select': 'Select',
+        'header_status': 'Status',
+        'btn_select_original': 'All Original',
+        'btn_select_new': 'All New',
+        'btn_apply_selection': 'Apply Selection',
+        # Log dialog
+        'btn_copy_log': 'Copy',
+        'btn_clear_log': 'Clear',
     },
     'ja': {
         'app_subtitle': 'PowerPointテキストを抽出 → 編集 → 反映',
@@ -230,6 +271,47 @@ LANGUAGES = {
         'advanced_options': '詳細オプション',
         'type_notes': 'ノート',
         'filter_placeholder': 'フィルタ...',
+        # UI elements
+        'mode_section': '操作モード',
+        'btn_compare': '2ファイル比較',
+        'show_detail': '詳細を表示',
+        'welcome_guide_title': 'PowerPointテキストを編集',
+        'guide_step1': '左のパネルでPPTXファイルを選択',
+        'guide_step2': 'テキストが一覧で表示されます',
+        'guide_step3': 'セルをダブルクリックして編集',
+        'guide_step4': '「更新を適用」でPPTXに反映',
+        'btn_apply': '更新を適用',
+        'btn_export_excel': 'Excelエクスポート',
+        'btn_export_json': 'JSONエクスポート',
+        'filter_label': 'フィルタ:',
+        'mode_desc_extract': 'PPTXからテキストを抽出して編集',
+        'mode_desc_update': '編集したデータをPPTXに反映',
+        # Grid toolbar
+        'btn_clear_grid': 'クリア',
+        'btn_replace_all': '一括置換',
+        'btn_undo': '元に戻す',
+        'btn_redo': 'やり直し',
+        # Replace dialog
+        'replace_search': '検索:',
+        'replace_with': '置換:',
+        'btn_replace': '置換',
+        # Compare dialog
+        'compare_title': '2つのPowerPointファイルを比較',
+        'compare_file1': '元ファイル:',
+        'compare_file2': '新ファイル:',
+        'btn_browse': '参照',
+        'compare_ignore_ws': '空白の違いを無視',
+        'btn_run_compare': '比較実行',
+        # Compare result
+        'btn_export_csv': 'CSVエクスポート',
+        'header_select': '採用',
+        'header_status': '状態',
+        'btn_select_original': '全て元',
+        'btn_select_new': '全て新',
+        'btn_apply_selection': '選択を反映',
+        # Log dialog
+        'btn_copy_log': 'コピー',
+        'btn_clear_log': 'クリア',
     },
 }
 
@@ -590,24 +672,24 @@ class EditableGrid(ttk.Frame):
         toolbar.pack(fill="x", pady=(0, 5))
 
         # フィルタ
-        ttk.Label(toolbar, text="フィルタ:").pack(side="left", padx=(0, 5))
+        ttk.Label(toolbar, text=t('filter_label')).pack(side="left", padx=(0, 5))
         self.filter_var = tk.StringVar()
         self.filter_entry = ttk.Entry(toolbar, textvariable=self.filter_var, width=20)
         self.filter_entry.pack(side="left", padx=(0, 5))
         self.filter_var.trace_add("write", lambda *args: self._apply_filter())
 
-        ttk.Button(toolbar, text="クリア", command=self._clear_filter).pack(side="left")
+        ttk.Button(toolbar, text=t('btn_clear_grid'), command=self._clear_filter).pack(side="left")
 
         # スペーサー
         ttk.Frame(toolbar).pack(side="left", fill="x", expand=True)
 
         # 一括置換ボタン
-        ttk.Button(toolbar, text="一括置換", command=self._show_replace_dialog).pack(side="left", padx=2)
+        ttk.Button(toolbar, text=t('btn_replace_all'), command=self._show_replace_dialog).pack(side="left", padx=2)
 
         # Undo/Redo
-        self.undo_btn = ttk.Button(toolbar, text="元に戻す", command=self._do_undo)
+        self.undo_btn = ttk.Button(toolbar, text=t('btn_undo'), command=self._do_undo)
         self.undo_btn.pack(side="left", padx=2)
-        self.redo_btn = ttk.Button(toolbar, text="やり直し", command=self._do_redo)
+        self.redo_btn = ttk.Button(toolbar, text=t('btn_redo'), command=self._do_redo)
         self.redo_btn.pack(side="left", padx=2)
 
         # Treeview
@@ -749,16 +831,16 @@ class EditableGrid(ttk.Frame):
 
     def _show_replace_dialog(self):
         dialog = tk.Toplevel(self)
-        dialog.title("一括置換")
+        dialog.title(t('btn_replace_all'))
         dialog.geometry("400x150")
         dialog.transient(self)
         dialog.grab_set()
 
-        ttk.Label(dialog, text="検索:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+        ttk.Label(dialog, text=t('replace_search')).grid(row=0, column=0, padx=10, pady=10, sticky="w")
         find_var = tk.StringVar()
         ttk.Entry(dialog, textvariable=find_var, width=40).grid(row=0, column=1, padx=10, pady=10)
 
-        ttk.Label(dialog, text="置換:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
+        ttk.Label(dialog, text=t('replace_with')).grid(row=1, column=0, padx=10, pady=10, sticky="w")
         replace_var = tk.StringVar()
         ttk.Entry(dialog, textvariable=replace_var, width=40).grid(row=1, column=1, padx=10, pady=10)
 
@@ -780,7 +862,7 @@ class EditableGrid(ttk.Frame):
             dialog.destroy()
             messagebox.showinfo("完了", f"{count} 件を置換しました")
 
-        ttk.Button(dialog, text="置換", command=do_replace).grid(row=2, column=1, pady=10, sticky="e")
+        ttk.Button(dialog, text=t('btn_replace'), command=do_replace).grid(row=2, column=1, pady=10, sticky="e")
 
     def load_data(self, data: List[Dict]):
         self._all_data = data.copy()
@@ -821,35 +903,35 @@ class CompareDialog:
         frame = ttk.Frame(self.dialog, padding=20)
         frame.pack(fill='both', expand=True)
 
-        ttk.Label(frame, text="2つのPowerPointファイルを比較", font=FONTS["heading"]).pack(anchor='w', pady=(0, 15))
+        ttk.Label(frame, text=t('compare_title'), font=FONTS["heading"]).pack(anchor='w', pady=(0, 15))
 
         # ファイル1
         f1 = ttk.Frame(frame)
         f1.pack(fill='x', pady=5)
-        ttk.Label(f1, text="元ファイル:", width=12).pack(side='left')
+        ttk.Label(f1, text=t('compare_file1'), width=12).pack(side='left')
         self.file1_var = tk.StringVar()
         ttk.Entry(f1, textvariable=self.file1_var, width=45).pack(side='left', padx=5)
-        ttk.Button(f1, text="参照", command=lambda: self._browse(self.file1_var)).pack(side='left')
+        ttk.Button(f1, text=t('btn_browse'), command=lambda: self._browse(self.file1_var)).pack(side='left')
 
         # ファイル2
         f2 = ttk.Frame(frame)
         f2.pack(fill='x', pady=5)
-        ttk.Label(f2, text="新ファイル:", width=12).pack(side='left')
+        ttk.Label(f2, text=t('compare_file2'), width=12).pack(side='left')
         self.file2_var = tk.StringVar()
         ttk.Entry(f2, textvariable=self.file2_var, width=45).pack(side='left', padx=5)
-        ttk.Button(f2, text="参照", command=lambda: self._browse(self.file2_var)).pack(side='left')
+        ttk.Button(f2, text=t('btn_browse'), command=lambda: self._browse(self.file2_var)).pack(side='left')
 
         # オプション
         opt = ttk.Frame(frame)
         opt.pack(fill='x', pady=15)
         self.ignore_ws = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opt, text="空白の違いを無視", variable=self.ignore_ws).pack(side='left')
+        ttk.Checkbutton(opt, text=t('compare_ignore_ws'), variable=self.ignore_ws).pack(side='left')
 
         # ボタン
         btn = ttk.Frame(frame)
         btn.pack(fill='x', pady=10)
-        ttk.Button(btn, text="キャンセル", command=self.dialog.destroy).pack(side='left')
-        tk.Button(btn, text="比較実行", bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
+        ttk.Button(btn, text=t('btn_cancel'), command=self.dialog.destroy).pack(side='left')
+        tk.Button(btn, text=t('btn_run_compare'), bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   command=self._execute).pack(side='left', padx=10)
 
     def _browse(self, var):
@@ -892,10 +974,10 @@ class CompareResultWindow:
         # 統計
         top = ttk.Frame(self.window, padding=10)
         top.pack(fill='x')
-        ttk.Label(top, text=f"📊 一致 {stats['same']} | 変更 {stats['changed']} | 追加 {stats['added']} | 削除 {stats['removed']}",
+        ttk.Label(top, text=f"📊 {stats['same']} | {stats['changed']} | {stats['added']} | {stats['removed']}",
                   font=FONTS["heading"]).pack(side='left')
 
-        ttk.Button(top, text="CSVエクスポート", command=self._export_csv).pack(side='right')
+        ttk.Button(top, text=t('btn_export_csv'), command=self._export_csv).pack(side='right')
 
         # グリッド
         grid_frame = ttk.Frame(self.window, padding=10)
@@ -904,10 +986,10 @@ class CompareResultWindow:
         cols = ("select", "slide", "id", "status", "before", "after")
         self.tree = ttk.Treeview(grid_frame, columns=cols, show="headings")
 
-        self.tree.heading("select", text="採用")
-        self.tree.heading("slide", text="スライド")
+        self.tree.heading("select", text=t('header_select'))
+        self.tree.heading("slide", text=t('header_slide'))
         self.tree.heading("id", text="ID")
-        self.tree.heading("status", text="状態")
+        self.tree.heading("status", text=t('header_status'))
         self.tree.heading("before", text=f"元: {f1}")
         self.tree.heading("after", text=f"新: {f2}")
 
@@ -935,13 +1017,13 @@ class CompareResultWindow:
         # ボタン
         bottom = ttk.Frame(self.window, padding=10)
         bottom.pack(fill='x')
-        ttk.Button(bottom, text="全て元", command=lambda: self._select_all("before")).pack(side='left', padx=2)
-        ttk.Button(bottom, text="全て新", command=lambda: self._select_all("after")).pack(side='left', padx=2)
-        tk.Button(bottom, text="選択を反映", font=(FONT_FAMILY_SANS, 10),
+        ttk.Button(bottom, text=t('btn_select_original'), command=lambda: self._select_all("before")).pack(side='left', padx=2)
+        ttk.Button(bottom, text=t('btn_select_new'), command=lambda: self._select_all("after")).pack(side='left', padx=2)
+        tk.Button(bottom, text=t('btn_apply_selection'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
                   activebackground="#047857", padx=SPACING["lg"], pady=SPACING["sm"],
                   cursor="hand2", command=self._apply).pack(side='right', padx=5)
-        ttk.Button(bottom, text="閉じる", command=self.window.destroy).pack(side='right')
+        ttk.Button(bottom, text=t('btn_close'), command=self.window.destroy).pack(side='right')
 
     def _refresh(self):
         for item in self.tree.get_children():
@@ -1212,7 +1294,7 @@ class InsightSlidesApp:
         frame.grid_rowconfigure(4, weight=1)
 
         # モード切替（セグメントコントロール風）
-        mode_card = ttk.LabelFrame(frame, text="操作モード", padding=SPACING["lg"])
+        mode_card = ttk.LabelFrame(frame, text=t('mode_section'), padding=SPACING["lg"])
         mode_card.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
         mode_card.grid_columnconfigure(0, weight=1)
         mode_card.grid_columnconfigure(1, weight=1)
@@ -1239,7 +1321,7 @@ class InsightSlidesApp:
         self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, SPACING["xs"]))
 
         # 比較ボタン（セカンダリ）
-        self.compare_btn = tk.Button(mode_card, text="2ファイル比較", font=btn_font,
+        self.compare_btn = tk.Button(mode_card, text=t('btn_compare'), font=btn_font,
                                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
                                      activebackground=COLOR_PALETTE["secondary_hover"],
                                      relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
@@ -1247,7 +1329,7 @@ class InsightSlidesApp:
         self.compare_btn.grid(row=0, column=2, sticky='ew')
 
         # 説明ラベル（ヒント）
-        self.mode_desc_label = tk.Label(mode_card, text="PPTXからテキストを抽出して編集",
+        self.mode_desc_label = tk.Label(mode_card, text=t('mode_desc_extract'),
                                         font=FONTS["caption"], fg=COLOR_PALETTE["text_tertiary"],
                                         bg=COLOR_PALETTE["bg_primary"])
         self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(SPACING["sm"], 0))
@@ -1294,7 +1376,7 @@ class InsightSlidesApp:
         self.mini_log_label.bind("<Button-1>", lambda e: self._show_log_detail())
 
         # 詳細リンク
-        detail_link = tk.Label(log_frame, text="詳細を表示",
+        detail_link = tk.Label(log_frame, text=t('show_detail'),
                                font=(FONT_FAMILY_SANS, 8), fg=COLOR_PALETTE["brand_primary"],
                                bg=COLOR_PALETTE["bg_secondary"], cursor="hand2")
         detail_link.pack(anchor='e', padx=SPACING["sm"], pady=(0, SPACING["xs"]))
@@ -1450,7 +1532,7 @@ class InsightSlidesApp:
         action_bar.grid(row=2, column=0, sticky='ew', padx=SPACING["md"])
 
         # プライマリアクション
-        self.apply_btn = tk.Button(action_bar, text="更新を適用", font=(FONT_FAMILY_SANS, 10),
+        self.apply_btn = tk.Button(action_bar, text=t('btn_apply'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   activebackground="#047857",
@@ -1458,7 +1540,7 @@ class InsightSlidesApp:
         self.apply_btn.pack(side='right')
 
         # エクスポートボタン（Excel）
-        self.export_excel_btn = tk.Button(action_bar, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
+        self.export_excel_btn = tk.Button(action_bar, text=t('btn_export_excel'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
                   activebackground=COLOR_PALETTE["secondary_hover"],
@@ -1466,7 +1548,7 @@ class InsightSlidesApp:
         self.export_excel_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
         # エクスポートボタン（JSON）
-        self.export_json_btn = tk.Button(action_bar, text="JSONエクスポート", font=(FONT_FAMILY_SANS, 10),
+        self.export_json_btn = tk.Button(action_bar, text=t('btn_export_json'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
                   activebackground=COLOR_PALETTE["secondary_hover"],
@@ -1479,16 +1561,16 @@ class InsightSlidesApp:
         center_frame.place(relx=0.5, rely=0.45, anchor='center')
 
         # タイトル
-        tk.Label(center_frame, text="PowerPointテキストを編集",
+        tk.Label(center_frame, text=t('welcome_guide_title'),
                  font=(FONT_FAMILY_SANS, 16, "bold"), fg=COLOR_PALETTE["text_primary"],
                  bg=COLOR_PALETTE["bg_primary"]).pack(pady=(0, SPACING["lg"]))
 
         # 手順
         steps = [
-            ("1", "左のパネルでPPTXファイルを選択"),
-            ("2", "テキストが一覧で表示されます"),
-            ("3", "セルをダブルクリックして編集"),
-            ("4", "「更新を適用」でPPTXに反映"),
+            ("1", t('guide_step1')),
+            ("2", t('guide_step2')),
+            ("3", t('guide_step3')),
+            ("4", t('guide_step4')),
         ]
 
         for num, text in steps:
@@ -1635,17 +1717,17 @@ class InsightSlidesApp:
             log_text.configure(state=tk.DISABLED)
             self._update_mini_log("準備完了")
 
-        tk.Button(btn_frame, text="コピー", font=(FONT_FAMILY_SANS, 9),
+        tk.Button(btn_frame, text=t('btn_copy_log'), font=(FONT_FAMILY_SANS, 9),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
                   relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
                   command=copy_log).pack(side='left', padx=(0, SPACING["sm"]))
 
-        tk.Button(btn_frame, text="クリア", font=(FONT_FAMILY_SANS, 9),
+        tk.Button(btn_frame, text=t('btn_clear_log'), font=(FONT_FAMILY_SANS, 9),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
                   relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
                   command=clear_log).pack(side='left')
 
-        tk.Button(btn_frame, text="閉じる", font=(FONT_FAMILY_SANS, 9),
+        tk.Button(btn_frame, text=t('btn_close'), font=(FONT_FAMILY_SANS, 9),
                   bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
                   command=dialog.destroy).pack(side='right')
@@ -1658,7 +1740,7 @@ class InsightSlidesApp:
         self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF")
         self.update_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
         self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.mode_desc_label.configure(text="PPTXからテキストを抽出して編集")
+        self.mode_desc_label.configure(text=t('mode_desc_extract'))
         self.update_frame.grid_remove()
         self.extract_frame.grid(row=0, column=0, sticky='nsew')
 
@@ -1669,7 +1751,7 @@ class InsightSlidesApp:
         self.extract_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
         self.update_btn.configure(bg=COLOR_PALETTE["action_update"], fg="#FFFFFF")
         self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.mode_desc_label.configure(text="編集内容をPPTXに反映")
+        self.mode_desc_label.configure(text=t('mode_desc_update'))
         self.extract_frame.grid_remove()
         self.update_frame.grid(row=0, column=0, sticky='nsew')
 
