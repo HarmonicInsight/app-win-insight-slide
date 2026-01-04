@@ -1271,22 +1271,37 @@ class InsightSlidesApp:
             self.advanced_content.grid(row=0, column=0, sticky='ew')
             self.advanced_frame.configure(text=f"▼ {t('advanced_options')}")
 
-        # ステータス
+        # ステータス＆ミニログ
         status_frame = ttk.Frame(frame, style='Main.TFrame')
         status_frame.grid(row=4, column=0, sticky='sew')
 
-        self.status_label = ttk.Label(status_frame, text=t('status_waiting'), font=FONTS["caption"])
-        self.status_label.pack(anchor='w')
-
+        # プログレスバー（処理中のみ表示）
         self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
-        self.progress.pack(fill='x', pady=SPACING["sm"])
+        self.progress.pack(fill='x', pady=(0, SPACING["sm"]))
 
+        # ミニログ（1-2行、クリックで詳細表示）
+        log_frame = tk.Frame(status_frame, bg=COLOR_PALETTE["bg_secondary"], cursor="hand2")
+        log_frame.pack(fill='x')
+        log_frame.bind("<Button-1>", lambda e: self._show_log_detail())
+
+        self.mini_log_label = tk.Label(log_frame, text=t('status_waiting'),
+                                       font=(FONT_FAMILY_SANS, 9), fg=COLOR_PALETTE["text_tertiary"],
+                                       bg=COLOR_PALETTE["bg_secondary"], anchor='w', padx=SPACING["sm"], pady=SPACING["xs"])
+        self.mini_log_label.pack(fill='x')
+        self.mini_log_label.bind("<Button-1>", lambda e: self._show_log_detail())
+
+        # 詳細リンク
+        detail_link = tk.Label(log_frame, text="詳細を表示",
+                               font=(FONT_FAMILY_SANS, 8), fg=COLOR_PALETTE["brand_primary"],
+                               bg=COLOR_PALETTE["bg_secondary"], cursor="hand2")
+        detail_link.pack(anchor='e', padx=SPACING["sm"], pady=(0, SPACING["xs"]))
+        detail_link.bind("<Button-1>", lambda e: self._show_log_detail())
+
+        # キャンセルボタン（処理中のみアクティブ）
         btn_frame = ttk.Frame(status_frame)
-        btn_frame.pack(fill='x')
+        btn_frame.pack(fill='x', pady=(SPACING["sm"], 0))
         self.cancel_btn = ttk.Button(btn_frame, text=t('btn_cancel'), command=self._cancel, state='disabled')
-        self.cancel_btn.pack(side='left', padx=(0, 5))
-        ttk.Button(btn_frame, text=t('btn_clear'), command=self._clear_output).pack(side='left', padx=(0, 5))
-        ttk.Button(btn_frame, text=t('btn_copy'), command=self._copy_output).pack(side='left')
+        self.cancel_btn.pack(side='left')
 
         self._switch_extract()
 
@@ -1394,17 +1409,18 @@ class InsightSlidesApp:
         self.config_manager.set('advanced_expanded', self.advanced_var.get())
 
     def _create_output(self, parent):
-        """右側メインコンテンツ - 出力表示エリア"""
-        card = ttk.LabelFrame(parent, text=t('panel_output'), padding=SPACING["lg"])
+        """右側メインコンテンツ - 編集専用エリア"""
+        # メインカード（タイトルなし - 構造で役割を示す）
+        card = ttk.Frame(parent, style='Card.TFrame')
         card.grid(row=0, column=1, sticky='nsew')
         card.grid_columnconfigure(0, weight=1)
-        card.grid_rowconfigure(2, weight=1)
+        card.grid_rowconfigure(1, weight=1)
 
-        # ファイル情報ヘッダー（シンプルに）
-        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_primary"], padx=SPACING["md"], pady=SPACING["sm"])
-        file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        # ファイル情報ヘッダー（コンパクト）
+        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_primary"], pady=SPACING["sm"])
+        file_info_frame.grid(row=0, column=0, sticky='ew', padx=SPACING["md"])
 
-        self.file_name_label = tk.Label(file_info_frame, text="ファイルを選択してください",
+        self.file_name_label = tk.Label(file_info_frame, text="",
                                         font=(FONT_FAMILY_SANS, 10), bg=COLOR_PALETTE["bg_primary"],
                                         fg=COLOR_PALETTE["text_secondary"])
         self.file_name_label.pack(side='left')
@@ -1414,54 +1430,89 @@ class InsightSlidesApp:
                                          fg=COLOR_PALETTE["text_tertiary"])
         self.file_info_detail.pack(side='right')
 
-        # タブ切替
-        self.output_notebook = ttk.Notebook(card)
-        self.output_notebook.grid(row=1, column=0, sticky='nsew', rowspan=2)
+        # メイン編集エリア（グリッド）
+        edit_area = ttk.Frame(card, style='Main.TFrame')
+        edit_area.grid(row=1, column=0, sticky='nsew', padx=SPACING["md"])
+        edit_area.grid_columnconfigure(0, weight=1)
+        edit_area.grid_rowconfigure(0, weight=1)
 
-        # ログタブ
-        log_frame = ttk.Frame(self.output_notebook)
-        self.output_notebook.add(log_frame, text="  ログ  ")
-        log_frame.grid_columnconfigure(0, weight=1)
-        log_frame.grid_rowconfigure(0, weight=1)
+        # ウェルカムガイド（初期状態）
+        self.welcome_frame = tk.Frame(edit_area, bg=COLOR_PALETTE["bg_primary"])
+        self.welcome_frame.grid(row=0, column=0, sticky='nsew')
+        self.welcome_frame.grid_columnconfigure(0, weight=1)
+        self.welcome_frame.grid_rowconfigure(0, weight=1)
+        self._create_welcome_guide()
 
-        # ログは等幅フォントで
-        self.output_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED,
-                                                      font=FONTS["mono"],
-                                                      bg=COLOR_PALETTE["bg_primary"],
-                                                      fg=COLOR_PALETTE["text_secondary"],
-                                                      insertbackground=COLOR_PALETTE["text_primary"],
-                                                      relief="flat", bd=0,
-                                                      padx=SPACING["sm"], pady=SPACING["sm"])
-        self.output_text.grid(row=0, column=0, sticky='nsew')
-
-        # グリッドタブ
-        grid_frame = ttk.Frame(self.output_notebook)
-        self.output_notebook.add(grid_frame, text="  グリッド編集  ")
-        grid_frame.grid_columnconfigure(0, weight=1)
-        grid_frame.grid_rowconfigure(0, weight=1)
-
-        self.grid_view = EditableGrid(grid_frame, on_change=self._on_grid_change)
+        # グリッドビュー（データ読込後に表示）
+        self.grid_container = ttk.Frame(edit_area, style='Main.TFrame')
+        self.grid_view = EditableGrid(self.grid_container, on_change=self._on_grid_change)
         self.grid_view.grid(row=0, column=0, sticky='nsew')
+        self.grid_container.grid_columnconfigure(0, weight=1)
+        self.grid_container.grid_rowconfigure(0, weight=1)
 
-        # グリッド用ボタン（アクションバー）
-        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_primary"])
-        grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(SPACING["md"], 0))
+        # アクションバー（下部固定）
+        action_bar = tk.Frame(card, bg=COLOR_PALETTE["bg_primary"], pady=SPACING["md"])
+        action_bar.grid(row=2, column=0, sticky='ew', padx=SPACING["md"])
 
         # プライマリアクション
-        tk.Button(grid_btn_frame, text="更新を適用", font=(FONT_FAMILY_SANS, 10),
+        self.apply_btn = tk.Button(action_bar, text="更新を適用", font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   activebackground="#047857",
-                  cursor="hand2", command=self._apply_grid_to_pptx).pack(side='right')
+                  cursor="hand2", command=self._apply_grid_to_pptx, state='disabled')
+        self.apply_btn.pack(side='right')
 
         # セカンダリアクション
-        tk.Button(grid_btn_frame, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
+        self.export_btn = tk.Button(action_bar, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
                   activebackground=COLOR_PALETTE["secondary_hover"],
-                  cursor="hand2", command=self._export_grid_excel).pack(side='right', padx=(0, SPACING["sm"]))
+                  cursor="hand2", command=self._export_grid_excel, state='disabled')
+        self.export_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
-        self._show_welcome()
+    def _create_welcome_guide(self):
+        """初期状態のウェルカムガイド"""
+        center_frame = tk.Frame(self.welcome_frame, bg=COLOR_PALETTE["bg_primary"])
+        center_frame.place(relx=0.5, rely=0.45, anchor='center')
+
+        # タイトル
+        tk.Label(center_frame, text="PowerPointテキストを編集",
+                 font=(FONT_FAMILY_SANS, 16, "bold"), fg=COLOR_PALETTE["text_primary"],
+                 bg=COLOR_PALETTE["bg_primary"]).pack(pady=(0, SPACING["lg"]))
+
+        # 手順
+        steps = [
+            ("1", "左のパネルでPPTXファイルを選択"),
+            ("2", "テキストが一覧で表示されます"),
+            ("3", "セルをダブルクリックして編集"),
+            ("4", "「更新を適用」でPPTXに反映"),
+        ]
+
+        for num, text in steps:
+            step_frame = tk.Frame(center_frame, bg=COLOR_PALETTE["bg_primary"])
+            step_frame.pack(anchor='w', pady=SPACING["xs"])
+
+            tk.Label(step_frame, text=num, font=(FONT_FAMILY_SANS, 10, "bold"),
+                     fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"],
+                     width=2).pack(side='left')
+            tk.Label(step_frame, text=text, font=(FONT_FAMILY_SANS, 10),
+                     fg=COLOR_PALETTE["text_secondary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
+
+    def _show_edit_area(self):
+        """ウェルカムガイドを隠してグリッドを表示"""
+        self.welcome_frame.grid_remove()
+        self.grid_container.grid(row=0, column=0, sticky='nsew')
+        self.apply_btn.configure(state='normal')
+        self.export_btn.configure(state='normal')
+
+    def _show_welcome_area(self):
+        """グリッドを隠してウェルカムガイドを表示"""
+        self.grid_container.grid_remove()
+        self.welcome_frame.grid(row=0, column=0, sticky='nsew')
+        self.apply_btn.configure(state='disabled')
+        self.export_btn.configure(state='disabled')
+        self.file_name_label.configure(text="")
+        self.file_info_detail.configure(text="")
 
     def _update_file_info(self, filename: str, item_count: int = 0, slide_count: int = 0):
         """ファイル情報ヘッダーを更新"""
@@ -1472,33 +1523,52 @@ class InsightSlidesApp:
             self.file_info_detail.configure(text="")
 
     def _show_welcome(self):
+        """初期ウェルカム表示（ミニログのみ更新）"""
         tier = self.license_manager.get_tier_info()
-        self._update_output(f"{t('welcome_title')}\n{APP_NAME} v{APP_VERSION} ({tier['name']})\n\n", clear=True)
+        self._update_mini_log(f"{APP_NAME} v{APP_VERSION} ({tier['name']}) - 準備完了")
 
     # === Output helpers ===
     def _update_output(self, text, clear=False):
-        self.output_text.configure(state=tk.NORMAL)
+        """ログバッファに追加し、ミニログを更新"""
         if clear:
-            self.output_text.delete('1.0', tk.END)
             self.log_buffer = []
-        self.output_text.insert(tk.END, text)
-        self.output_text.see(tk.END)
-        self.output_text.configure(state=tk.DISABLED)
         self.log_buffer.append(text)
+        # ミニログには最新の1行のみ表示
+        last_line = text.strip().split('\n')[-1] if text.strip() else ""
+        self._update_mini_log(last_line)
 
     def _update_output_safe(self, text, clear=False):
         self.root.after(0, lambda: self._update_output(text, clear))
 
+    def _update_mini_log(self, text):
+        """ミニログラベルを更新（最新メッセージのみ）"""
+        # 長すぎるテキストは省略
+        max_len = 50
+        display_text = text[:max_len] + "..." if len(text) > max_len else text
+        self.mini_log_label.configure(text=display_text)
+
+    def _update_mini_log_safe(self, text):
+        self.root.after(0, lambda: self._update_mini_log(text))
+
     def _update_status(self, text, color=None):
-        self.status_label.configure(text=text)
+        """ステータス更新（ミニログに統合）"""
+        self._update_mini_log(text)
 
     def _update_status_safe(self, text, color=None):
         self.root.after(0, lambda: self._update_status(text, color))
 
     def _log(self, msg, level="info"):
         timestamp = datetime.now().strftime("%H:%M:%S")
-        prefix = {"error": "❌ ", "warning": "⚠️ ", "success": "✅ "}.get(level, "")
-        self._update_output_safe(f"[{timestamp}] {prefix}{msg}\n")
+        prefix = {"error": "× ", "warning": "! ", "success": "✓ "}.get(level, "")
+        full_msg = f"[{timestamp}] {prefix}{msg}"
+        self._update_output_safe(f"{full_msg}\n")
+        # エラー時は色を変える
+        if level == "error":
+            self.mini_log_label.configure(fg=COLOR_PALETTE["error"])
+        elif level == "success":
+            self.mini_log_label.configure(fg=COLOR_PALETTE["success"])
+        else:
+            self.mini_log_label.configure(fg=COLOR_PALETTE["text_tertiary"])
 
     def _start_progress(self):
         self.progress.start(10)
@@ -1516,18 +1586,64 @@ class InsightSlidesApp:
             self.cancel_requested = True
             self._log("キャンセルをリクエスト...", "warning")
 
-    def _clear_output(self):
-        self.output_text.configure(state=tk.NORMAL)
-        self.output_text.delete('1.0', tk.END)
-        self.output_text.configure(state=tk.DISABLED)
-        self.log_buffer = []
+    def _show_log_detail(self):
+        """ログ詳細モーダルを表示"""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("処理ログ")
+        dialog.geometry("600x400")
+        dialog.transient(self.root)
+        dialog.grab_set()
 
-    def _copy_output(self):
-        content = self.output_text.get('1.0', tk.END).strip()
-        if content:
-            self.root.clipboard_clear()
-            self.root.clipboard_append(content)
-            messagebox.showinfo(t('dialog_complete'), t('msg_copied'))
+        # ログテキストエリア
+        text_frame = ttk.Frame(dialog)
+        text_frame.pack(fill='both', expand=True, padx=SPACING["md"], pady=SPACING["md"])
+
+        log_text = scrolledtext.ScrolledText(text_frame, wrap=tk.WORD,
+                                              font=FONTS["mono"],
+                                              bg=COLOR_PALETTE["bg_primary"],
+                                              fg=COLOR_PALETTE["text_secondary"],
+                                              relief="flat", bd=1)
+        log_text.pack(fill='both', expand=True)
+
+        # ログ内容を表示
+        log_content = "".join(self.log_buffer) if self.log_buffer else "ログはありません"
+        log_text.insert('1.0', log_content)
+        log_text.configure(state=tk.DISABLED)
+        log_text.see(tk.END)
+
+        # ボタンフレーム
+        btn_frame = tk.Frame(dialog, bg=COLOR_PALETTE["bg_primary"])
+        btn_frame.pack(fill='x', padx=SPACING["md"], pady=(0, SPACING["md"]))
+
+        def copy_log():
+            content = "".join(self.log_buffer)
+            if content:
+                self.root.clipboard_clear()
+                self.root.clipboard_append(content)
+                messagebox.showinfo("コピー完了", "ログをクリップボードにコピーしました")
+
+        def clear_log():
+            self.log_buffer = []
+            log_text.configure(state=tk.NORMAL)
+            log_text.delete('1.0', tk.END)
+            log_text.insert('1.0', "ログをクリアしました")
+            log_text.configure(state=tk.DISABLED)
+            self._update_mini_log("準備完了")
+
+        tk.Button(btn_frame, text="コピー", font=(FONT_FAMILY_SANS, 9),
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
+                  relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
+                  command=copy_log).pack(side='left', padx=(0, SPACING["sm"]))
+
+        tk.Button(btn_frame, text="クリア", font=(FONT_FAMILY_SANS, 9),
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
+                  relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
+                  command=clear_log).pack(side='left')
+
+        tk.Button(btn_frame, text="閉じる", font=(FONT_FAMILY_SANS, 9),
+                  bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
+                  relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
+                  command=dialog.destroy).pack(side='right')
 
     # === Mode switching ===
     def _switch_extract(self):
@@ -1704,7 +1820,7 @@ class InsightSlidesApp:
                     # グリッドにロード
                     self.extracted_data = data
                     self.root.after(0, lambda: self.grid_view.load_data(data))
-                    self.root.after(0, lambda: self.output_notebook.select(1))  # グリッドタブへ
+                    self.root.after(0, lambda: self._show_edit_area())
 
                     # ファイル保存
                     fmt = self.output_format_var.get()
@@ -1999,7 +2115,7 @@ class InsightSlidesApp:
                 "type": "", "text": item["text"]
             })
         self.grid_view.load_data(grid_data)
-        self.output_notebook.select(1)
+        self._show_edit_area()
 
     # === グリッド操作 ===
     def _on_grid_change(self, item, column, value):
