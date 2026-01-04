@@ -440,7 +440,7 @@ COLOR_PALETTE = {
 }
 
 # フォント設定（日本語対応）
-FONT_FAMILY_SANS = "Yu Gothic UI"    # 日本語対応フォント（Windows 10+）
+FONT_FAMILY_SANS = "Meiryo UI"       # クリーンな日本語フォント
 FONT_FAMILY_MONO = "Consolas"        # 等幅フォント（ログ・コード）
 
 def get_fonts(size_preset: str = 'medium') -> dict:
