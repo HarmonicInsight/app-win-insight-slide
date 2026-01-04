@@ -1203,12 +1203,12 @@ class InsightSlidesApp:
         mode_card.grid_columnconfigure(1, weight=1)
         mode_card.grid_columnconfigure(2, weight=1)
 
-        # ボタンスタイル定数
+        # ボタンフォント（直接指定）
+        btn_font = (FONT_FAMILY_SANS, 10)
         btn_padding = SPACING["sm"]
-        btn_radius = RADIUS["default"]
 
         # 抽出ボタン（プライマリ）
-        self.extract_btn = tk.Button(mode_card, text=t('mode_extract_short'), font=FONTS["body_medium"],
+        self.extract_btn = tk.Button(mode_card, text=t('mode_extract_short'), font=btn_font,
                                      bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                                      activebackground=COLOR_PALETTE["brand_hover"], activeforeground="#FFFFFF",
                                      relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
@@ -1216,7 +1216,7 @@ class InsightSlidesApp:
         self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, SPACING["xs"]))
 
         # 更新ボタン（セカンダリ）
-        self.update_btn = tk.Button(mode_card, text=t('mode_update_short'), font=FONTS["body_medium"],
+        self.update_btn = tk.Button(mode_card, text=t('mode_update_short'), font=btn_font,
                                     bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
                                     activebackground=COLOR_PALETTE["secondary_hover"],
                                     relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
@@ -1224,7 +1224,7 @@ class InsightSlidesApp:
         self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, SPACING["xs"]))
 
         # 比較ボタン（セカンダリ）
-        self.compare_btn = tk.Button(mode_card, text="比較", font=FONTS["body_medium"],
+        self.compare_btn = tk.Button(mode_card, text="2ファイル比較", font=btn_font,
                                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
                                      activebackground=COLOR_PALETTE["secondary_hover"],
                                      relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
@@ -1297,7 +1297,7 @@ class InsightSlidesApp:
                         variable=self.include_metadata_var).grid(row=1, column=0, sticky='w', pady=(0, SPACING["md"]))
 
         # プライマリボタン
-        tk.Button(self.extract_frame, text=t('btn_single_file'), font=FONTS["body_medium"],
+        tk.Button(self.extract_frame, text=t('btn_single_file'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
                   activebackground=COLOR_PALETTE["brand_hover"],
                   padx=SPACING["lg"], pady=SPACING["sm"],
@@ -1305,7 +1305,7 @@ class InsightSlidesApp:
 
         # セカンダリボタン
         if self.license_manager.can_batch():
-            tk.Button(self.extract_frame, text=t('btn_batch_folder'), font=FONTS["body"],
+            tk.Button(self.extract_frame, text=t('btn_batch_folder'), font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                       activebackground=COLOR_PALETTE["secondary_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
@@ -1328,14 +1328,14 @@ class InsightSlidesApp:
                     fg=COLOR_PALETTE["warning"], bg=COLOR_PALETTE["warning_light"]).pack(anchor='w')
 
         # プライマリボタン
-        tk.Button(self.update_frame, text=t('btn_from_excel'), font=FONTS["body_medium"],
+        tk.Button(self.update_frame, text=t('btn_from_excel'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
                   activebackground="#047857",
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   cursor="hand2", command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
         # セカンダリボタン
-        tk.Button(self.update_frame, text=t('btn_from_json'), font=FONTS["body"],
+        tk.Button(self.update_frame, text=t('btn_from_json'), font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   activebackground=COLOR_PALETTE["secondary_hover"],
                   padx=SPACING["md"], pady=SPACING["sm"],
@@ -1343,7 +1343,7 @@ class InsightSlidesApp:
 
         # Pro機能: 差分プレビュー
         if self.license_manager.is_pro():
-            tk.Button(self.update_frame, text=t('btn_diff_preview'), font=FONTS["body"],
+            tk.Button(self.update_frame, text=t('btn_diff_preview'), font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                       activebackground=COLOR_PALETTE["secondary_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
@@ -1393,7 +1393,7 @@ class InsightSlidesApp:
         file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
         self.file_name_label = tk.Label(file_info_frame, text="ファイルを選択してください",
-                                        font=FONTS["body_medium"], bg=COLOR_PALETTE["bg_primary"],
+                                        font=(FONT_FAMILY_SANS, 10), bg=COLOR_PALETTE["bg_primary"],
                                         fg=COLOR_PALETTE["text_secondary"])
         self.file_name_label.pack(side='left')
 
@@ -1436,14 +1436,14 @@ class InsightSlidesApp:
         grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(SPACING["md"], 0))
 
         # プライマリアクション
-        tk.Button(grid_btn_frame, text="更新を適用", font=FONTS["body_medium"],
+        tk.Button(grid_btn_frame, text="更新を適用", font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   activebackground="#047857",
                   cursor="hand2", command=self._apply_grid_to_pptx).pack(side='right')
 
         # セカンダリアクション
-        tk.Button(grid_btn_frame, text="Excelエクスポート", font=FONTS["body"],
+        tk.Button(grid_btn_frame, text="Excelエクスポート", font=(FONT_FAMILY_SANS, 10),
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
                   activebackground=COLOR_PALETTE["secondary_hover"],
