@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InsightSlide - PowerPointの中身を見える化して、AIでチェック</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --color-primary: #7C3AED;
+      --color-primary-light: #A78BFA;
+      --color-primary-dark: #5B21B6;
+      --color-secondary: #2563EB;
+      --color-accent: #06B6D4;
+      --color-success: #10B981;
+      --color-bg: #FFFFFF;
+      --color-bg-secondary: #F9FAFB;
+      --color-bg-dark: #111827;
+      --color-text: #111827;
+      --color-text-secondary: #4B5563;
+      --color-text-muted: #9CA3AF;
+      --color-border: #E5E7EB;
+      --font-sans: 'Inter', 'Noto Sans JP', sans-serif;
+      --radius-md: 0.5rem;
+      --radius-lg: 0.75rem;
+      --radius-xl: 1rem;
+      --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+      --shadow-card-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      color: var(--color-text);
+      line-height: 1.6;
+      background: var(--color-bg);
+    }
+
+    /* Header */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--color-border);
+      z-index: 100;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 20px;
+      color: var(--color-primary);
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+    }
+
+    .nav-link {
+      color: var(--color-text-secondary);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-link:hover {
+      color: var(--color-primary);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 20px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+    }
+
+    .btn-primary {
+      background: var(--color-primary);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--color-primary-dark);
+    }
+
+    .btn-secondary {
+      background: var(--color-bg-secondary);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--color-border);
+    }
+
+    .btn-lg {
+      padding: 14px 28px;
+      font-size: 16px;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 140px 24px 80px;
+      background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 50%, #E0E7FF 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -20%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(124, 58, 237, 0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: white;
+      border-radius: 50px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--color-primary);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .hero-title {
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 20px;
+      color: var(--color-text);
+    }
+
+    .hero-title-accent {
+      color: var(--color-primary);
+    }
+
+    .hero-description {
+      font-size: 18px;
+      color: var(--color-text-secondary);
+      margin-bottom: 32px;
+      line-height: 1.8;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 40px;
+    }
+
+    .hero-stat {
+      text-align: left;
+    }
+
+    .hero-stat-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--color-primary);
+    }
+
+    .hero-stat-label {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    .hero-visual {
+      position: relative;
+      z-index: 1;
+    }
+
+    .hero-image {
+      width: 100%;
+      max-width: 560px;
+      filter: drop-shadow(0 20px 40px rgba(124, 58, 237, 0.15));
+    }
+
+    /* Section */
+    .section {
+      padding: 100px 24px;
+    }
+
+    .section-dark {
+      background: var(--color-bg-dark);
+      color: white;
+    }
+
+    .section-gray {
+      background: var(--color-bg-secondary);
+    }
+
+    .section-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      max-width: 640px;
+      margin: 0 auto 60px;
+    }
+
+    .section-title {
+      font-size: 36px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .section-description {
+      font-size: 16px;
+      color: var(--color-text-secondary);
+    }
+
+    .section-dark .section-description {
+      color: var(--color-text-muted);
+    }
+
+    /* Problem Section */
+    .problem-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .problem-card {
+      background: white;
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-card);
+      border: 1px solid var(--color-border);
+    }
+
+    .problem-icon {
+      width: 48px;
+      height: 48px;
+      background: #FEF2F2;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      font-size: 24px;
+    }
+
+    .problem-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .problem-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    /* Features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 32px;
+    }
+
+    .feature-card {
+      background: white;
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      box-shadow: var(--shadow-card);
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      box-shadow: var(--shadow-card-hover);
+      transform: translateY(-4px);
+    }
+
+    .feature-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary));
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+
+    .feature-icon svg {
+      width: 28px;
+      height: 28px;
+      color: white;
+    }
+
+    .feature-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .feature-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      line-height: 1.7;
+    }
+
+    /* Use Cases */
+    .usecases-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+    }
+
+    .usecase-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
+      padding: 32px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .usecase-number {
+      width: 40px;
+      height: 40px;
+      background: var(--color-primary);
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .usecase-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .usecase-text {
+      font-size: 14px;
+      color: var(--color-text-muted);
+      line-height: 1.7;
+    }
+
+    /* How it Works */
+    .steps {
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 40px;
+      left: 80px;
+      right: 80px;
+      height: 2px;
+      background: var(--color-border);
+    }
+
+    .step {
+      text-align: center;
+      position: relative;
+      flex: 1;
+    }
+
+    .step-number {
+      width: 80px;
+      height: 80px;
+      background: var(--color-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 32px;
+      font-weight: 700;
+      color: white;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .step-text {
+      font-size: 14px;
+      color: var(--color-text-secondary);
+      max-width: 200px;
+      margin: 0 auto;
+    }
+
+    /* CTA */
+    .cta {
+      text-align: center;
+      padding: 100px 24px;
+      background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 100%);
+      color: white;
+    }
+
+    .cta-title {
+      font-size: 40px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+
+    .cta-description {
+      font-size: 18px;
+      opacity: 0.9;
+      margin-bottom: 32px;
+    }
+
+    .cta .btn-primary {
+      background: white;
+      color: var(--color-primary);
+    }
+
+    .cta .btn-primary:hover {
+      background: var(--color-bg-secondary);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--color-bg-dark);
+      color: white;
+      padding: 60px 24px 40px;
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .footer-logo {
+      font-weight: 700;
+      font-size: 18px;
+      color: white;
+    }
+
+    .footer-text {
+      font-size: 13px;
+      color: var(--color-text-muted);
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .hero-inner {
+        grid-template-columns: 1fr;
+        text-align: center;
+      }
+
+      .hero-visual {
+        order: -1;
+      }
+
+      .hero-image {
+        max-width: 400px;
+        margin: 0 auto;
+      }
+
+      .hero-stats {
+        justify-content: center;
+      }
+
+      .hero-cta {
+        justify-content: center;
+      }
+
+      .features-grid,
+      .problem-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .usecases-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .steps {
+        flex-direction: column;
+        gap: 40px;
+      }
+
+      .steps::before {
+        display: none;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero-title {
+        font-size: 32px;
+      }
+
+      .section-title {
+        font-size: 28px;
+      }
+
+      .nav {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <svg class="logo-icon" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="#7C3AED"/>
+        <path d="M8 10h16v2H8zM8 15h12v2H8zM8 20h14v2H8z" fill="white"/>
+        <circle cx="24" cy="24" r="6" fill="#06B6D4"/>
+        <path d="M22 24l2 2 4-4" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      InsightSlide
+    </a>
+    <nav class="nav">
+      <a href="#features" class="nav-link">機能</a>
+      <a href="#usecases" class="nav-link">活用事例</a>
+      <a href="#howitworks" class="nav-link">使い方</a>
+      <a href="#" class="btn btn-primary">無料で始める</a>
+    </nav>
+  </div>
+</header>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        PowerPoint品質管理ツール
+      </div>
+      <h1 class="hero-title">
+        PowerPointのテキストを<br>
+        <span class="hero-title-accent">Excelで一括編集</span>
+      </h1>
+      <p class="hero-description">
+        スライドのテキストをExcelに抽出 → 編集 → 流し込み。<br>
+        100ページでも一括処理。AIで表記揺れ・修正漏れもチェック。
+      </p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-primary btn-lg">無料ダウンロード</a>
+        <a href="#howitworks" class="btn btn-secondary btn-lg">使い方を見る</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-value">90%</div>
+          <div class="hero-stat-label">チェック時間削減</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">100+</div>
+          <div class="hero-stat-label">スライド一括処理</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-value">0円</div>
+          <div class="hero-stat-label">基本機能無料</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <svg class="hero-image" viewBox="0 0 560 420" fill="none">
+        <!-- Background -->
+        <rect x="20" y="20" width="360" height="260" rx="12" fill="white" stroke="#E5E7EB" stroke-width="2"/>
+
+        <!-- PowerPoint slide content -->
+        <rect x="40" y="50" width="200" height="16" rx="4" fill="#7C3AED"/>
+        <rect x="40" y="80" width="320" height="8" rx="2" fill="#E5E7EB"/>
+        <rect x="40" y="96" width="280" height="8" rx="2" fill="#E5E7EB"/>
+        <rect x="40" y="112" width="300" height="8" rx="2" fill="#E5E7EB"/>
+
+        <rect x="40" y="140" width="150" height="100" rx="8" fill="#F3F4F6"/>
+        <rect x="200" y="140" width="160" height="100" rx="8" fill="#F3F4F6"/>
+
+        <!-- Arrow -->
+        <path d="M400 150 L440 150" stroke="#7C3AED" stroke-width="3" stroke-linecap="round"/>
+        <path d="M435 145 L445 150 L435 155" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+        <!-- JSON/Excel output -->
+        <rect x="460" y="60" width="80" height="180" rx="8" fill="white" stroke="#10B981" stroke-width="2"/>
+        <rect x="472" y="80" width="56" height="6" rx="2" fill="#10B981"/>
+        <rect x="472" y="96" width="40" height="4" rx="1" fill="#D1D5DB"/>
+        <rect x="472" y="108" width="48" height="4" rx="1" fill="#D1D5DB"/>
+        <rect x="472" y="120" width="36" height="4" rx="1" fill="#D1D5DB"/>
+        <rect x="472" y="140" width="56" height="6" rx="2" fill="#10B981"/>
+        <rect x="472" y="156" width="44" height="4" rx="1" fill="#D1D5DB"/>
+        <rect x="472" y="168" width="52" height="4" rx="1" fill="#D1D5DB"/>
+        <rect x="472" y="188" width="56" height="6" rx="2" fill="#10B981"/>
+        <rect x="472" y="204" width="40" height="4" rx="1" fill="#D1D5DB"/>
+
+        <!-- AI Check badge -->
+        <rect x="380" y="280" width="160" height="120" rx="12" fill="white" stroke="#7C3AED" stroke-width="2"/>
+        <circle cx="420" cy="320" r="24" fill="#F5F3FF"/>
+        <path d="M410 320 L418 328 L432 312" stroke="#7C3AED" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="456" y="308" width="64" height="8" rx="2" fill="#7C3AED"/>
+        <rect x="456" y="324" width="48" height="6" rx="2" fill="#E5E7EB"/>
+        <rect x="400" y="360" width="120" height="24" rx="6" fill="#7C3AED"/>
+        <text x="460" y="376" font-family="Inter, sans-serif" font-size="10" fill="white" text-anchor="middle">AIでチェック</text>
+
+        <!-- Decorative elements -->
+        <circle cx="80" cy="340" r="40" fill="#F5F3FF" opacity="0.8"/>
+        <circle cx="320" cy="380" r="30" fill="#E0E7FF" opacity="0.6"/>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- Problem -->
+<section class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">PowerPoint資料作成の悩み</h2>
+      <p class="section-description">大量のスライドを目視でチェックするのは限界があります</p>
+    </div>
+    <div class="problem-grid">
+      <div class="problem-card">
+        <div class="problem-icon">😫</div>
+        <h3 class="problem-title">表記揺れを見逃す</h3>
+        <p class="problem-text">「弊社」と「当社」、「お客様」と「お客さま」など、100ページ超のスライドで統一するのは至難の業</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🔍</div>
+        <h3 class="problem-title">修正漏れが発生</h3>
+        <p class="problem-text">「ここ直して」と言われた箇所、全部直したはずなのに後から漏れが発覚。信頼を失う</p>
+      </div>
+      <div class="problem-card">
+        <div class="problem-icon">🌍</div>
+        <h3 class="problem-title">多言語版が大変</h3>
+        <p class="problem-text">日本語版を英語に翻訳。テキストをコピペして翻訳して貼り直し。デザイン崩れも多発</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features" class="section section-gray">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">InsightSlideの機能</h2>
+      <p class="section-description">デザインとテキストを分離して、品質管理を効率化</p>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">テキスト抽出</h3>
+        <p class="feature-text">PowerPointからすべてのテキストをJSON/Excel形式で抽出。スライド番号、シェイプ情報付きで構造化</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">差分比較</h3>
+        <p class="feature-text">2つのファイルを比較して変更箇所をハイライト。修正漏れを一目で発見</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/>
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">テキスト流し込み</h3>
+        <p class="feature-text">Excelで編集したテキストをPowerPointに自動反映。デザインを崩さずコンテンツだけ更新</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">AI連携</h3>
+        <p class="feature-text">JSON出力をChatGPT/Claudeに投げるだけ。表記揺れ、用語統一、誤字脱字を自動検出</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="2" y1="12" x2="22" y2="12"/>
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">多言語対応</h3>
+        <p class="feature-text">抽出→翻訳→流し込みの3ステップで多言語版を作成。レイアウトはそのまま</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <line x1="3" y1="9" x2="21" y2="9"/>
+            <line x1="9" y1="21" x2="9" y2="9"/>
+          </svg>
+        </div>
+        <h3 class="feature-title">バッチ処理</h3>
+        <p class="feature-text">複数ファイルを一括処理。フォルダを指定するだけで数百ファイルを処理</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Use Cases -->
+<section id="usecases" class="section section-dark">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">活用事例</h2>
+      <p class="section-description">様々なシーンでPowerPoint業務を効率化</p>
+    </div>
+    <div class="usecases-grid">
+      <div class="usecase-card">
+        <div class="usecase-number">1</div>
+        <div>
+          <h3 class="usecase-title">品質チェック・校正</h3>
+          <p class="usecase-text">提案書・報告書の最終チェック。JSONに抽出してAIに投げれば、表記揺れ・誤字・修正漏れを数秒で検出</p>
+        </div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-number">2</div>
+        <div>
+          <h3 class="usecase-title">多言語資料作成</h3>
+          <p class="usecase-text">日本語マスターから英語・中国語版を作成。Excelで翻訳して流し込むだけ。デザイン崩れゼロ</p>
+        </div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-number">3</div>
+        <div>
+          <h3 class="usecase-title">テンプレート活用</h3>
+          <p class="usecase-text">会社の雛形を本当に活用。レイアウトは固定、テキストだけExcelで管理・更新</p>
+        </div>
+      </div>
+      <div class="usecase-card">
+        <div class="usecase-number">4</div>
+        <div>
+          <h3 class="usecase-title">用語集チェック</h3>
+          <p class="usecase-text">「正式名称リスト」と照合。製品名・会社名の表記ミスを自動検出</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it Works -->
+<section id="howitworks" class="section">
+  <div class="section-inner">
+    <div class="section-header">
+      <h2 class="section-title">使い方</h2>
+      <p class="section-description">3ステップでPowerPointの品質管理を効率化</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3 class="step-title">ファイルを開く</h3>
+        <p class="step-text">PowerPointファイルをドラッグ&ドロップ</p>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3 class="step-title">テキスト抽出</h3>
+        <p class="step-text">JSON/Excelに一括エクスポート</p>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3 class="step-title">AIでチェック</h3>
+        <p class="step-text">ChatGPTに投げて品質チェック</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta">
+  <h2 class="cta-title">PowerPoint品質管理を、<br>今日から効率化</h2>
+  <p class="cta-description">基本機能は無料。今すぐダウンロードして試せます。</p>
+  <a href="#" class="btn btn-primary btn-lg">無料ダウンロード</a>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-logo">InsightSlide</div>
+    <p class="footer-text">&copy; 2024 Harmonic Insight. All rights reserved.</p>
+  </div>
+</footer>
+
+</body>
+</html>
