@@ -1041,149 +1041,84 @@ class InsightSlidesApp:
         self.root.configure(bg=COLOR_PALETTE["bg_primary"])
 
     def _apply_styles(self):
-        """B2B SaaS品質のスタイル設定"""
+        """シンプルで統一感のあるスタイル"""
         self.style = ttk.Style()
         self.style.theme_use('clam')
 
+        # 統一背景色（全体で一貫性を持たせる）
+        BG = COLOR_PALETTE["bg_primary"]  # #FFFFFF
+        BG_LIGHT = COLOR_PALETTE["bg_secondary"]  # #F8FAFC
+        TEXT = COLOR_PALETTE["text_primary"]  # #1F2937
+        TEXT_SUB = COLOR_PALETTE["text_tertiary"]  # #6B7280
+        BORDER = COLOR_PALETTE["border_light"]  # #E5E7EB
+
         # === フレーム ===
-        self.style.configure('Main.TFrame', background=COLOR_PALETTE["bg_primary"])
-        self.style.configure('Card.TFrame', background=COLOR_PALETTE["bg_card"])
-        self.style.configure('Sidebar.TFrame', background=COLOR_PALETTE["bg_sidebar"])
+        self.style.configure('Main.TFrame', background=BG)
+        self.style.configure('Card.TFrame', background=BG)
+        self.style.configure('Sidebar.TFrame', background=BG)
+        self.style.configure('TFrame', background=BG)
 
-        # === ラベルフレーム（カード風） ===
-        self.style.configure('TLabelframe',
-                            background=COLOR_PALETTE["bg_card"],
-                            bordercolor=COLOR_PALETTE["border_light"],
-                            lightcolor=COLOR_PALETTE["border_light"],
-                            darkcolor=COLOR_PALETTE["border_light"])
-        self.style.configure('TLabelframe.Label',
-                            background=COLOR_PALETTE["bg_card"],
-                            foreground=COLOR_PALETTE["text_primary"],
-                            font=FONTS["heading"])
+        # === ラベルフレーム ===
+        self.style.configure('TLabelframe', background=BG, bordercolor=BORDER)
+        self.style.configure('TLabelframe.Label', background=BG, foreground=TEXT,
+                            font=(FONT_FAMILY_SANS, 11, "bold"))
 
-        # === ラベル ===
-        self.style.configure('TLabel',
-                            background=COLOR_PALETTE["bg_card"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            font=FONTS["body"])
-        self.style.configure('Title.TLabel',
-                            foreground=COLOR_PALETTE["text_primary"],
-                            font=FONTS["title"])
-        self.style.configure('Heading.TLabel',
-                            foreground=COLOR_PALETTE["text_primary"],
-                            font=FONTS["heading"])
-        self.style.configure('Caption.TLabel',
-                            foreground=COLOR_PALETTE["text_tertiary"],
-                            font=FONTS["caption"])
-        self.style.configure('Muted.TLabel',
-                            foreground=COLOR_PALETTE["text_muted"],
-                            font=FONTS["small"])
+        # === ラベル（全て同じ背景） ===
+        self.style.configure('TLabel', background=BG, foreground=TEXT,
+                            font=(FONT_FAMILY_SANS, 10))
+        self.style.configure('Muted.TLabel', background=BG, foreground=TEXT_SUB,
+                            font=(FONT_FAMILY_SANS, 9))
+        self.style.configure('Caption.TLabel', background=BG, foreground=TEXT_SUB,
+                            font=(FONT_FAMILY_SANS, 9))
 
-        # === ボタン（セカンダリ）===
-        self.style.configure('TButton',
-                            background=COLOR_PALETTE["secondary_default"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            bordercolor=COLOR_PALETTE["border_default"],
-                            focuscolor=COLOR_PALETTE["brand_light"],
-                            padding=(SPACING["md"], SPACING["sm"]),
-                            font=FONTS["body"])
+        # === ボタン ===
+        self.style.configure('TButton', background=BG_LIGHT, foreground=TEXT,
+                            bordercolor=BORDER, padding=(12, 6),
+                            font=(FONT_FAMILY_SANS, 10))
         self.style.map('TButton',
-                      background=[('active', COLOR_PALETTE["secondary_hover"]),
-                                 ('pressed', COLOR_PALETTE["secondary_hover"])],
-                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])])
+                      background=[('active', COLOR_PALETTE["bg_elevated"])])
 
         # === チェックボックス ===
-        self.style.configure('TCheckbutton',
-                            background=COLOR_PALETTE["bg_card"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            font=FONTS["body"])
-        self.style.map('TCheckbutton',
-                      background=[('active', COLOR_PALETTE["bg_card"])])
-
-        # === ラジオボタン ===
-        self.style.configure('TRadiobutton',
-                            background=COLOR_PALETTE["bg_card"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            font=FONTS["body"])
+        self.style.configure('TCheckbutton', background=BG, foreground=TEXT,
+                            font=(FONT_FAMILY_SANS, 10))
+        self.style.map('TCheckbutton', background=[('active', BG)])
 
         # === コンボボックス ===
-        self.style.configure('TCombobox',
-                            fieldbackground=COLOR_PALETTE["bg_input"],
-                            background=COLOR_PALETTE["bg_input"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            bordercolor=COLOR_PALETTE["border_default"],
-                            arrowcolor=COLOR_PALETTE["text_tertiary"],
-                            padding=(SPACING["sm"], SPACING["xs"]))
-        self.style.map('TCombobox',
-                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])],
-                      fieldbackground=[('readonly', COLOR_PALETTE["bg_secondary"])])
+        self.style.configure('TCombobox', fieldbackground=BG, background=BG,
+                            foreground=TEXT, bordercolor=BORDER,
+                            padding=(4, 2), font=(FONT_FAMILY_SANS, 10))
 
         # === エントリ ===
-        self.style.configure('TEntry',
-                            fieldbackground=COLOR_PALETTE["bg_input"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            bordercolor=COLOR_PALETTE["border_default"],
-                            insertcolor=COLOR_PALETTE["text_primary"],
-                            padding=(SPACING["sm"], SPACING["xs"]))
-        self.style.map('TEntry',
-                      bordercolor=[('focus', COLOR_PALETTE["brand_primary"])])
+        self.style.configure('TEntry', fieldbackground=BG, foreground=TEXT,
+                            bordercolor=BORDER, padding=(4, 2))
 
         # === Notebook（タブ） ===
-        self.style.configure('TNotebook',
-                            background=COLOR_PALETTE["bg_primary"],
-                            bordercolor=COLOR_PALETTE["border_light"],
-                            tabmargins=[0, 0, 0, 0])
-        self.style.configure('TNotebook.Tab',
-                            background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_tertiary"],
-                            padding=(SPACING["lg"], SPACING["sm"]),
-                            font=FONTS["body"])
+        self.style.configure('TNotebook', background=BG, bordercolor=BORDER)
+        self.style.configure('TNotebook.Tab', background=BG_LIGHT, foreground=TEXT_SUB,
+                            padding=(16, 8), font=(FONT_FAMILY_SANS, 10))
         self.style.map('TNotebook.Tab',
-                      background=[('selected', COLOR_PALETTE["bg_card"])],
-                      foreground=[('selected', COLOR_PALETTE["text_primary"])],
-                      expand=[('selected', [0, 0, 0, 2])])
+                      background=[('selected', BG)],
+                      foreground=[('selected', TEXT)])
 
         # === プログレスバー ===
-        self.style.configure('TProgressbar',
-                            background=COLOR_PALETTE["brand_primary"],
-                            troughcolor=COLOR_PALETTE["bg_elevated"],
-                            bordercolor=COLOR_PALETTE["border_light"],
-                            lightcolor=COLOR_PALETTE["brand_primary"],
-                            darkcolor=COLOR_PALETTE["brand_hover"])
+        self.style.configure('TProgressbar', background=COLOR_PALETTE["brand_primary"],
+                            troughcolor=BG_LIGHT, bordercolor=BORDER)
 
-        # === Treeview（グリッド） ===
-        self.style.configure('Treeview',
-                            background=COLOR_PALETTE["bg_card"],
-                            foreground=COLOR_PALETTE["text_secondary"],
-                            fieldbackground=COLOR_PALETTE["bg_card"],
-                            bordercolor=COLOR_PALETTE["border_light"],
-                            rowheight=32,
-                            font=FONTS["body"])
-        self.style.configure('Treeview.Heading',
-                            background=COLOR_PALETTE["bg_secondary"],
-                            foreground=COLOR_PALETTE["text_primary"],
-                            bordercolor=COLOR_PALETTE["border_light"],
-                            font=FONTS["body_medium"],
-                            padding=(SPACING["sm"], SPACING["xs"]))
+        # === Treeview ===
+        self.style.configure('Treeview', background=BG, foreground=TEXT,
+                            fieldbackground=BG, bordercolor=BORDER,
+                            rowheight=28, font=(FONT_FAMILY_SANS, 10))
+        self.style.configure('Treeview.Heading', background=BG_LIGHT, foreground=TEXT,
+                            bordercolor=BORDER, font=(FONT_FAMILY_SANS, 10, "bold"))
         self.style.map('Treeview',
                       background=[('selected', COLOR_PALETTE["brand_light"])],
                       foreground=[('selected', COLOR_PALETTE["brand_primary"])])
 
         # === スクロールバー ===
-        self.style.configure('Vertical.TScrollbar',
-                            background=COLOR_PALETTE["bg_elevated"],
-                            troughcolor=COLOR_PALETTE["bg_card"],
-                            bordercolor=COLOR_PALETTE["bg_card"],
-                            arrowcolor=COLOR_PALETTE["text_muted"])
-        self.style.configure('Horizontal.TScrollbar',
-                            background=COLOR_PALETTE["bg_elevated"],
-                            troughcolor=COLOR_PALETTE["bg_card"],
-                            bordercolor=COLOR_PALETTE["bg_card"],
-                            arrowcolor=COLOR_PALETTE["text_muted"])
-
-        # === セパレーター ===
-        self.style.configure('TSeparator',
-                            background=COLOR_PALETTE["divider"])
+        self.style.configure('Vertical.TScrollbar', background=BG_LIGHT,
+                            troughcolor=BG, bordercolor=BG)
+        self.style.configure('Horizontal.TScrollbar', background=BG_LIGHT,
+                            troughcolor=BG, bordercolor=BG)
 
     def _create_menu(self):
         menubar = tk.Menu(self.root)
@@ -1300,7 +1235,7 @@ class InsightSlidesApp:
         # 説明ラベル（ヒント）
         self.mode_desc_label = tk.Label(mode_card, text="PPTXからテキストを抽出して編集",
                                         font=FONTS["caption"], fg=COLOR_PALETTE["text_tertiary"],
-                                        bg=COLOR_PALETTE["bg_card"])
+                                        bg=COLOR_PALETTE["bg_primary"])
         self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(SPACING["sm"], 0))
 
         # ファイル操作
@@ -1455,16 +1390,16 @@ class InsightSlidesApp:
         card.grid_rowconfigure(2, weight=1)
 
         # ファイル情報ヘッダー（シンプルに）
-        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_secondary"], padx=SPACING["md"], pady=SPACING["sm"])
+        file_info_frame = tk.Frame(card, bg=COLOR_PALETTE["bg_primary"], padx=SPACING["md"], pady=SPACING["sm"])
         file_info_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
         self.file_name_label = tk.Label(file_info_frame, text="ファイルを選択してください",
-                                        font=FONTS["body_medium"], bg=COLOR_PALETTE["bg_secondary"],
+                                        font=FONTS["body_medium"], bg=COLOR_PALETTE["bg_primary"],
                                         fg=COLOR_PALETTE["text_secondary"])
         self.file_name_label.pack(side='left')
 
         self.file_info_detail = tk.Label(file_info_frame, text="",
-                                         font=FONTS["caption"], bg=COLOR_PALETTE["bg_secondary"],
+                                         font=FONTS["caption"], bg=COLOR_PALETTE["bg_primary"],
                                          fg=COLOR_PALETTE["text_tertiary"])
         self.file_info_detail.pack(side='right')
 
@@ -1481,7 +1416,7 @@ class InsightSlidesApp:
         # ログは等幅フォントで
         self.output_text = scrolledtext.ScrolledText(log_frame, wrap=tk.WORD, state=tk.DISABLED,
                                                       font=FONTS["mono"],
-                                                      bg=COLOR_PALETTE["bg_card"],
+                                                      bg=COLOR_PALETTE["bg_primary"],
                                                       fg=COLOR_PALETTE["text_secondary"],
                                                       insertbackground=COLOR_PALETTE["text_primary"],
                                                       relief="flat", bd=0,
@@ -1498,7 +1433,7 @@ class InsightSlidesApp:
         self.grid_view.grid(row=0, column=0, sticky='nsew')
 
         # グリッド用ボタン（アクションバー）
-        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_card"])
+        grid_btn_frame = tk.Frame(grid_frame, bg=COLOR_PALETTE["bg_primary"])
         grid_btn_frame.grid(row=1, column=0, sticky='ew', pady=(SPACING["md"], 0))
 
         # プライマリアクション
