@@ -441,7 +441,7 @@ COLOR_PALETTE = {
 
 # フォント設定（日本語対応）
 FONT_FAMILY_SANS = "Meiryo UI"       # クリーンな日本語フォント
-FONT_FAMILY_MONO = "Consolas"        # 等幅フォント（ログ・コード）
+FONT_FAMILY_MONO = "MS Gothic"       # 日本語対応等幅フォント
 
 def get_fonts(size_preset: str = 'medium') -> dict:
     base = {'small': 10, 'medium': 11, 'large': 13}.get(size_preset, 11)
@@ -461,9 +461,9 @@ def get_fonts(size_preset: str = 'medium') -> dict:
         "small": (FONT_FAMILY_SANS, base - 2, "normal"),      # 注釈
         "tiny": (FONT_FAMILY_SANS, base - 3, "normal"),       # 極小
 
-        # 等幅（ログ・データ表示用）
-        "mono": (FONT_FAMILY_MONO, base, "normal"),
-        "mono_small": (FONT_FAMILY_MONO, base - 1, "normal"),
+        # ログ・データ表示用（日本語対応）
+        "mono": (FONT_FAMILY_SANS, base, "normal"),
+        "mono_small": (FONT_FAMILY_SANS, base - 1, "normal"),
     }
 
 FONTS = get_fonts('medium')
@@ -590,24 +590,23 @@ class EditableGrid(ttk.Frame):
         toolbar.pack(fill="x", pady=(0, 5))
 
         # フィルタ
-        ttk.Label(toolbar, text="🔍", font=FONTS["body"]).pack(side="left")
         self.filter_var = tk.StringVar()
         self.filter_entry = ttk.Entry(toolbar, textvariable=self.filter_var, width=20)
-        self.filter_entry.pack(side="left", padx=(5, 5))
+        self.filter_entry.pack(side="left", padx=(0, 5))
         self.filter_var.trace_add("write", lambda *args: self._apply_filter())
 
-        ttk.Button(toolbar, text=t('btn_clear_filter'), command=self._clear_filter, width=6).pack(side="left")
+        ttk.Button(toolbar, text="クリア", command=self._clear_filter).pack(side="left")
 
         # スペーサー
         ttk.Frame(toolbar).pack(side="left", fill="x", expand=True)
 
         # 一括置換ボタン
-        ttk.Button(toolbar, text="🔄 一括置換", command=self._show_replace_dialog, width=10).pack(side="left", padx=2)
+        ttk.Button(toolbar, text="一括置換", command=self._show_replace_dialog).pack(side="left", padx=2)
 
         # Undo/Redo
-        self.undo_btn = ttk.Button(toolbar, text="↩ 元に戻す", command=self._do_undo, width=10)
+        self.undo_btn = ttk.Button(toolbar, text="元に戻す", command=self._do_undo)
         self.undo_btn.pack(side="left", padx=2)
-        self.redo_btn = ttk.Button(toolbar, text="↪ やり直し", command=self._do_redo, width=10)
+        self.redo_btn = ttk.Button(toolbar, text="やり直し", command=self._do_redo)
         self.redo_btn.pack(side="left", padx=2)
 
         # Treeview
