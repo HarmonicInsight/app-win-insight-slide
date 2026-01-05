@@ -2663,7 +2663,7 @@ class InsightSlidesApp:
 
         badge_text = f"{tier['badge']}"
         ttk.Label(status_inner, text=badge_text, font=FONTS["body_bold"],
-                  foreground=COLOR_PALETTE["accent_blue"]).pack(side='left')
+                  foreground=COLOR_PALETTE["brand_primary"]).pack(side='left')
 
         if self.license_manager.is_activated():
             # 有効期限表示
@@ -2763,7 +2763,7 @@ class InsightSlidesApp:
             webbrowser.open(SUPPORT_LINKS.get('purchase', ''))
 
         trial_link = ttk.Label(link_frame, text=t('license_trial_link'), font=FONTS["small"],
-                               foreground=COLOR_PALETTE["accent_blue"], cursor="hand2")
+                               foreground=COLOR_PALETTE["brand_primary"], cursor="hand2")
         trial_link.pack(side='left')
         trial_link.bind("<Button-1>", lambda e: open_trial())
 
@@ -2771,7 +2771,7 @@ class InsightSlidesApp:
                   foreground=COLOR_PALETTE["text_muted"]).pack(side='left')
 
         purchase_link = ttk.Label(link_frame, text=t('btn_purchase'), font=FONTS["small"],
-                                  foreground=COLOR_PALETTE["accent_blue"], cursor="hand2")
+                                  foreground=COLOR_PALETTE["brand_primary"], cursor="hand2")
         purchase_link.pack(side='left')
         purchase_link.bind("<Button-1>", lambda e: open_purchase())
 
