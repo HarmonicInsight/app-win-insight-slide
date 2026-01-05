@@ -1,20 +1,43 @@
 # -*- coding: utf-8 -*-
 """
 License Types - ライセンスティア定義
-統一形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
+新形式: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
 """
 from enum import Enum
 from dataclasses import dataclass
 from typing import Dict, Any, Optional
 
 
+class ProductCode(Enum):
+    """製品コード（4文字）"""
+    INSS = "INSS"  # InsightSlide Standard
+    INSP = "INSP"  # InsightSlide Pro
+
+
 class LicenseTier(str, Enum):
-    """ライセンスティア"""
+    """ライセンスティア（プラン）"""
     FREE = "FREE"      # 無料版 (機能制限あり)
     TRIAL = "TRIAL"    # トライアル (14日間)
     STD = "STD"        # Standard (年間)
     PRO = "PRO"        # Professional (年間)
-    ENT = "ENT"        # Enterprise (永久)
+
+
+class ErrorCode(Enum):
+    """エラーコード"""
+    E001 = "E001"  # キー形式不正
+    E002 = "E002"  # 署名検証失敗
+    E003 = "E003"  # メール不一致
+    E004 = "E004"  # 期限切れ
+    E005 = "E005"  # 製品不一致
+
+
+ERROR_MESSAGES: Dict[ErrorCode, str] = {
+    ErrorCode.E001: "ライセンスキーの形式が正しくありません",
+    ErrorCode.E002: "ライセンスキーが無効です",
+    ErrorCode.E003: "メールアドレスがライセンスキーと一致しません",
+    ErrorCode.E004: "ライセンスの有効期限が切れています",
+    ErrorCode.E005: "このライセンスは InsightSlide 用ではありません",
+}
 
 
 # ティア定義
@@ -41,12 +64,6 @@ TIERS: Dict[LicenseTier, Dict[str, Any]] = {
         "name": "Professional",
         "name_ja": "プロフェッショナル",
         "duration_months": 12,
-        "duration_days": None,
-    },
-    LicenseTier.ENT: {
-        "name": "Enterprise",
-        "name_ja": "エンタープライズ",
-        "duration_months": None,
         "duration_days": None,
     },
 }
@@ -107,16 +124,6 @@ FEATURE_LIMITS: Dict[LicenseTier, FeatureLimits] = {
         speaker_notes=True,
         font_analysis=True,
     ),
-    LicenseTier.ENT: FeatureLimits(
-        update_slide_limit=None,
-        batch_extract=True,
-        batch_update=True,
-        diff_preview=True,
-        auto_backup=True,
-        ai_processing=True,
-        speaker_notes=True,
-        font_analysis=True,
-    ),
 }
 
 
@@ -125,9 +132,14 @@ class ValidationResult:
     """検証結果"""
     valid: bool
     tier: LicenseTier = LicenseTier.FREE
+    product_code: Optional[ProductCode] = None
     expires: Optional[str] = None  # YYYY-MM-DD or None
+    error_code: Optional[ErrorCode] = None
     error: Optional[str] = None
 
 
-# 製品コード
-PRODUCT_CODE = "SLIDE"
+# 有効な製品コード（InsightSlide用）
+VALID_PRODUCT_CODES = [ProductCode.INSS, ProductCode.INSP]
+
+# トライアル期間（日）
+TRIAL_DAYS = 14

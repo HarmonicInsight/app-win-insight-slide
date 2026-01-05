@@ -29,23 +29,121 @@ import string
 import webbrowser
 import traceback
 from datetime import datetime, timedelta
+from typing import Dict, Tuple, List, Optional
 
-# insight-common ライセンスモジュールをインポート
-import importlib.util
-_license_module_path = os.path.join(os.path.dirname(__file__), 'insight-common', 'license', 'python', '__init__.py')
-_spec = importlib.util.spec_from_file_location("insight_license", _license_module_path)
-_license_module = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_license_module)
-ProductCode = _license_module.ProductCode
-InsightLicenseTier = _license_module.LicenseTier
-LicenseInfo = _license_module.LicenseInfo
-LicenseValidator = _license_module.LicenseValidator
-get_feature_limits = _license_module.get_feature_limits
-TIER_NAMES = _license_module.TIER_NAMES
-INSIGHT_TIERS = _license_module.TIERS
+# ライセンス検証（ローカル実装）
+import hmac
+import base64
+from enum import Enum
+from dataclasses import dataclass
+
+class ProductCode(Enum):
+    INSS = "INSS"  # InsightSlide Standard
+    INSP = "INSP"  # InsightSlide Pro
+
+class InsightLicenseTier(Enum):
+    TRIAL = "TRIAL"
+    STD = "STD"
+    PRO = "PRO"
+    ENT = "ENT"
+
+@dataclass
+class LicenseInfo:
+    is_valid: bool
+    tier: Optional[InsightLicenseTier] = None
+    product: Optional[ProductCode] = None
+    expires: Optional[datetime] = None
+    error: Optional[str] = None
+
+# 署名用シークレットキー（環境変数から取得 - 必須）
+# セキュリティ上、デフォルト値は設定しない
+_LICENSE_SECRET_RAW = os.environ.get("INSIGHT_LICENSE_SECRET")
+_LICENSE_SECRET: Optional[bytes] = None
+_LICENSE_VERIFICATION_AVAILABLE = False
+
+if _LICENSE_SECRET_RAW:
+    _LICENSE_SECRET = _LICENSE_SECRET_RAW.encode() if isinstance(_LICENSE_SECRET_RAW, str) else _LICENSE_SECRET_RAW
+    _LICENSE_VERIFICATION_AVAILABLE = True
+
+# ライセンスキー正規表現: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
+import re as _re
+_LICENSE_KEY_REGEX = _re.compile(r"^(INSS|INSP)-(TRIAL|STD|PRO)-(\d{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$")
+
+def _generate_signature(data: str) -> str:
+    if not _LICENSE_VERIFICATION_AVAILABLE or _LICENSE_SECRET is None:
+        raise RuntimeError("License signing not available")
+    sig = hmac.new(_LICENSE_SECRET, data.encode(), hashlib.sha256).digest()
+    return base64.b32encode(sig)[:8].decode().upper()
+
+def _verify_signature(data: str, signature: str) -> bool:
+    if not _LICENSE_VERIFICATION_AVAILABLE or _LICENSE_SECRET is None:
+        return False
+    try:
+        expected = _generate_signature(data)
+        return hmac.compare_digest(expected, signature)
+    except Exception:
+        return False
+
+class LicenseValidator:
+    def validate(self, key: str, expires_at=None) -> LicenseInfo:
+        if not key:
+            return LicenseInfo(is_valid=False, error="キーが空です")
+
+        key = key.strip().upper()
+        match = _LICENSE_KEY_REGEX.match(key)
+        if not match:
+            return LicenseInfo(is_valid=False, error="キー形式が不正です")
+
+        product_str, tier_str, yymm, email_hash, sig1, sig2 = match.groups()
+
+        try:
+            product = ProductCode(product_str)
+            tier = InsightLicenseTier(tier_str)
+        except ValueError:
+            return LicenseInfo(is_valid=False, error="無効な製品/プラン")
+
+        # 署名検証
+        signature = sig1 + sig2
+        sign_data = f"{product_str}-{tier_str}-{yymm}-{email_hash}"
+        if not _verify_signature(sign_data, signature):
+            return LicenseInfo(is_valid=False, error="署名が無効です")
+
+        # 有効期限
+        try:
+            year = 2000 + int(yymm[:2])
+            month = int(yymm[2:])
+            if month == 12:
+                expires = datetime(year + 1, 1, 1) - timedelta(days=1)
+            else:
+                expires = datetime(year, month + 1, 1) - timedelta(days=1)
+        except ValueError:
+            return LicenseInfo(is_valid=False, error="有効期限が不正です")
+
+        if datetime.now() > expires:
+            return LicenseInfo(is_valid=False, tier=tier, error="期限切れです")
+
+        return LicenseInfo(is_valid=True, tier=tier, product=product, expires=expires)
+
+    def is_product_covered(self, info: LicenseInfo, product_code: str) -> bool:
+        if not info or not info.product:
+            return False
+        return info.product.value.startswith(product_code[:3])
+
+TIER_NAMES = {
+    InsightLicenseTier.TRIAL: "トライアル",
+    InsightLicenseTier.STD: "Standard",
+    InsightLicenseTier.PRO: "Pro",
+    InsightLicenseTier.ENT: "Enterprise",
+}
+
+INSIGHT_TIERS = {
+    InsightLicenseTier.TRIAL: {"duration_days": 14},
+    InsightLicenseTier.STD: {"duration_months": 12},
+    InsightLicenseTier.PRO: {"duration_months": 12},
+    InsightLicenseTier.ENT: {},
+}
 import threading
 from pathlib import Path
-from typing import Dict, Tuple, List, Optional
 import shutil
 
 # ============== App Info ==============
@@ -505,28 +603,14 @@ class LicenseManager:
 
     @staticmethod
     def _compute_email_hash(email: str) -> str:
-        """メールアドレスからハッシュを生成（Base36エンコード、4文字）
+        """メールアドレスからハッシュを生成（Base32エンコード、4文字）
 
-        insight-commonのチェックサム計算と同様のBase36形式を使用
+        insight-commonと同じBase32形式を使用
         """
+        import base64
         normalized = email.strip().lower()
         hash_bytes = hashlib.sha256(normalized.encode('utf-8')).digest()
-
-        # 最初の4バイトを整数に変換
-        hash_int = int.from_bytes(hash_bytes[:4], 'big')
-
-        # Base36エンコード（insight-commonと同じ文字セット）
-        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-        result = ""
-        while hash_int:
-            result = chars[hash_int % 36] + result
-            hash_int //= 36
-
-        # 4文字に正規化（0埋めまたは末尾4文字）
-        if len(result) < 4:
-            return result.zfill(4)
-        return result[-4:]
+        return base64.b32encode(hash_bytes)[:4].decode().upper()
 
     @staticmethod
     def _extract_email_hash_from_key(key: str) -> Optional[str]:
@@ -743,15 +827,15 @@ COLOR_PALETTE = {
     "bg_input": "#FFFFFF",         # 入力フィールド背景
 
     # テキスト（4段階の階層）
-    "text_primary": "#1F2937",     # メインテキスト（見出し）
-    "text_secondary": "#374151",   # 本文テキスト
+    "text_primary": "#1E293B",     # メインテキスト（見出し）- Unified
+    "text_secondary": "#64748B",   # 本文テキスト - Unified
     "text_tertiary": "#6B7280",    # 補助テキスト
-    "text_muted": "#9CA3AF",       # 薄いテキスト（注釈）
+    "text_muted": "#94A3B8",       # 薄いテキスト（注釈）- Unified
     "text_placeholder": "#D1D5DB", # プレースホルダー
 
     # ブランドカラー（落ち着いたブルー系）
-    "brand_primary": "#2563EB",    # プライマリブルー
-    "brand_hover": "#1D4ED8",      # ホバー時（濃い）
+    "brand_primary": "#3B82F6",    # プライマリブルー - Unified
+    "brand_hover": "#2563EB",      # ホバー時（濃い）
     "brand_light": "#DBEAFE",      # 薄いブルー（選択背景）
     "brand_muted": "#93C5FD",      # ミュートブルー
 
@@ -777,7 +861,8 @@ COLOR_PALETTE = {
 
     # ボーダー・区切り
     "border_light": "#E5E7EB",     # 薄いボーダー
-    "border_default": "#D1D5DB",   # 標準ボーダー
+    "border_default": "#E2E8F0",   # 標準ボーダー - Unified
+    "border": "#E2E8F0",           # Unified border color
     "border_dark": "#9CA3AF",      # 濃いボーダー
     "divider": "#F3F4F6",          # セクション区切り
 
@@ -785,6 +870,12 @@ COLOR_PALETTE = {
     "diff_changed": "#FEF3C7",
     "diff_added": "#D1FAE5",
     "diff_removed": "#FEE2E2",
+
+    # Unified aliases for consistency
+    "primary": "#3B82F6",
+    "surface": "#FFFFFF",
+    "background": "#F8FAFC",
+    "text": "#1E293B",
 }
 
 # フォント設定（日本語対応）
@@ -797,21 +888,26 @@ def get_fonts(size_preset: str = 'medium') -> dict:
         # 見出し系（Semibold）
         "display": (FONT_FAMILY_SANS, base + 8, "bold"),      # アプリタイトル
         "title": (FONT_FAMILY_SANS, base + 4, "bold"),        # 画面タイトル
+        "title_ui": ("Segoe UI", 18, "bold"),                 # Unified dialog title
         "heading": (FONT_FAMILY_SANS, base + 2, "bold"),      # セクション見出し
+        "heading_ui": ("Segoe UI", 12, "bold"),               # Unified heading
 
         # 本文系
         "body": (FONT_FAMILY_SANS, base, "normal"),           # 本文
+        "body_ui": ("Segoe UI", 11),                          # Unified body text
         "body_medium": (FONT_FAMILY_SANS, base, "bold"),      # 本文（強調）
         "body_bold": (FONT_FAMILY_SANS, base, "bold"),        # ボタンラベル
 
         # 補助系
         "caption": (FONT_FAMILY_SANS, base - 1, "normal"),    # キャプション
         "small": (FONT_FAMILY_SANS, base - 2, "normal"),      # 注釈
+        "small_ui": ("Segoe UI", 10),                         # Unified small text
         "tiny": (FONT_FAMILY_SANS, base - 3, "normal"),       # 極小
 
         # ログ・データ表示用（日本語対応）
         "mono": (FONT_FAMILY_SANS, base, "normal"),
         "mono_small": (FONT_FAMILY_SANS, base - 1, "normal"),
+        "code": ("Consolas", 11),                             # Unified code font
     }
 
 FONTS = get_fonts('medium')
@@ -2691,90 +2787,108 @@ class InsightSlidesApp:
             )
 
     def _show_license_dialog(self, startup_check: bool = False):
-        """ライセンス認証ダイアログを表示
+        """ライセンス認証ダイアログを表示（統一デザイン）
 
         Args:
             startup_check: 起動時チェックの場合True（キャンセル不可）
         """
         dialog = tk.Toplevel(self.root)
-        dialog.title(t('license_auth_title'))
-        dialog.geometry("550x520")
-        dialog.minsize(550, 520)
+        dialog.title(APP_NAME)
+        dialog.geometry("550x580")
+        dialog.minsize(550, 580)
         dialog.transient(self.root)
         dialog.grab_set()
+        dialog.configure(bg=COLOR_PALETTE["background"])
 
         if startup_check:
             # 閉じるボタンでFree版として続行
             dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
-        frame = ttk.Frame(dialog, padding=20)
-        frame.pack(fill='both', expand=True)
+        # メインフレーム
+        main_frame = ttk.Frame(dialog, padding=25)
+        main_frame.pack(fill='both', expand=True)
 
-        # ヘッダー
-        header_frame = ttk.Frame(frame)
-        header_frame.pack(fill='x', pady=(0, 15))
-        ttk.Label(header_frame, text=APP_NAME, font=FONTS["heading"]).pack(side='left')
+        # タイトル
+        title_label = ttk.Label(
+            main_frame,
+            text=APP_NAME,
+            font=FONTS["title_ui"]
+        )
+        title_label.pack(pady=(0, 20))
 
         tier = self.license_manager.get_tier_info()
         tier_name = tier['name_ja'] if get_language() == 'ja' else tier['name']
 
-        # 現在のステータス表示
-        status_frame = ttk.Frame(frame, style="Card.TFrame")
-        status_frame.pack(fill='x', pady=(0, 15))
+        # 現在のステータスセクション
+        status_frame = ttk.LabelFrame(main_frame, text=t('license_current'), padding=15)
+        status_frame.pack(fill='x', pady=(0, 20))
 
-        ttk.Label(status_frame, text=t('license_current'), font=FONTS["body_bold"]).pack(anchor='w', pady=(10, 5), padx=10)
+        status_icon = "✓" if self.license_manager.is_activated() else "○"
+        status_text = tier['badge']
 
-        status_inner = ttk.Frame(status_frame)
-        status_inner.pack(fill='x', padx=10, pady=(0, 10))
+        # ステータスラベル
+        status_label = ttk.Label(
+            status_frame,
+            text=f"{status_icon} {status_text}",
+            font=FONTS["heading_ui"],
+            foreground=COLOR_PALETTE["primary"] if self.license_manager.is_activated() else COLOR_PALETTE["text_muted"]
+        )
+        status_label.pack(anchor='w', pady=(0, 5))
 
-        badge_text = f"{tier['badge']}"
-        ttk.Label(status_inner, text=badge_text, font=FONTS["body_bold"],
-                  foreground=COLOR_PALETTE["brand_primary"]).pack(side='left')
-
+        # 有効期限情報
         if self.license_manager.is_activated():
-            # 有効期限表示
             expiry_str = self.license_manager.get_expiry_date_str()
             days = self.license_manager.get_days_until_expiry()
 
             if days is not None:
                 if days > 0:
-                    status_text = f"  |  {t('license_valid_until', expiry_str)} {t('license_days_remaining', days)}"
-                    status_color = COLOR_PALETTE["success"] if days > 30 else COLOR_PALETTE["warning"]
+                    detail_text = f"{t('license_valid_until', expiry_str)} - {t('license_days_remaining', days)}"
+                    detail_color = COLOR_PALETTE["success"] if days > 30 else COLOR_PALETTE["warning"]
                 else:
-                    status_text = f"  |  {t('license_status_expired')}"
-                    status_color = COLOR_PALETTE["error"]
+                    detail_text = t('license_status_expired')
+                    detail_color = COLOR_PALETTE["error"]
             else:
-                status_text = f"  |  {t('license_perpetual')}"
-                status_color = COLOR_PALETTE["success"]
+                detail_text = t('license_perpetual')
+                detail_color = COLOR_PALETTE["success"]
 
-            ttk.Label(status_inner, text=status_text, font=FONTS["small"],
-                      foreground=status_color).pack(side='left')
+            ttk.Label(
+                status_frame,
+                text=detail_text,
+                font=FONTS["body_ui"],
+                foreground=detail_color
+            ).pack(anchor='w')
 
-        ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=10)
+        # ライセンス入力フォーム
+        form_frame = ttk.LabelFrame(main_frame, text="License Activation", padding=15)
+        form_frame.pack(fill='x', pady=(0, 15))
 
-        # フォーマット説明
-        ttk.Label(frame, text="形式: INSS-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC", font=FONTS["small"],
-                  foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 5))
-        ttk.Label(frame, text="※メールアドレスとキーの組み合わせで認証されます", font=FONTS["small"],
-                  foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 10))
-
-        # メールアドレス入力
-        ttk.Label(frame, text=t('license_email'), font=FONTS["body"]).pack(anchor='w')
+        # メールアドレス
+        ttk.Label(form_frame, text=t('license_email'), font=FONTS["body_ui"]).pack(anchor='w', pady=(0, 5))
         email_var = tk.StringVar(value=self.license_manager.license_info.get('email', ''))
-        email_entry = ttk.Entry(frame, textvariable=email_var, width=45, font=FONTS["body"])
-        email_entry.pack(fill='x', pady=(5, 10))
+        email_entry = ttk.Entry(form_frame, textvariable=email_var, font=FONTS["body_ui"])
+        email_entry.pack(fill='x', pady=(0, 15), ipady=4)
 
-        # ライセンスキー入力
-        ttk.Label(frame, text=t('license_key'), font=FONTS["body"]).pack(anchor='w')
+        # ライセンスキー
+        ttk.Label(form_frame, text=t('license_key'), font=FONTS["body_ui"]).pack(anchor='w', pady=(0, 5))
+        ttk.Label(
+            form_frame,
+            text="Format: INSS-STD-YYMM-XXXX-XXXX-XXXX",
+            font=FONTS["small_ui"],
+            foreground=COLOR_PALETTE["text_muted"]
+        ).pack(anchor='w', pady=(0, 5))
         key_var = tk.StringVar(value=self.license_manager.license_info.get('key', ''))
-        key_entry = ttk.Entry(frame, textvariable=key_var, width=45, font=FONTS["body"])
-        key_entry.pack(fill='x', pady=(5, 10))
+        key_entry = ttk.Entry(form_frame, textvariable=key_var, font=FONTS["code"])
+        key_entry.pack(fill='x', pady=(0, 5), ipady=4)
 
-        # エラーメッセージ表示用
+        # エラーメッセージ
         error_var = tk.StringVar()
-        error_label = ttk.Label(frame, textvariable=error_var, font=FONTS["small"],
-                                foreground=COLOR_PALETTE["error"])
-        error_label.pack(anchor='w', pady=(0, 10))
+        error_label = ttk.Label(
+            main_frame,
+            textvariable=error_var,
+            font=FONTS["small_ui"],
+            foreground=COLOR_PALETTE["error"]
+        )
+        error_label.pack(fill='x', pady=(0, 15))
 
         def activate():
             email = email_var.get().strip()
@@ -2789,7 +2903,8 @@ class InsightSlidesApp:
 
             ok, msg = self.license_manager.activate(email, key)
             if ok:
-                messagebox.showinfo(t('dialog_complete'), msg)
+                messagebox.showinfo(t('dialog_complete'), msg, parent=dialog)
+                error_var.set("")
                 dialog.destroy()
                 self._create_layout()
             else:
@@ -2797,10 +2912,10 @@ class InsightSlidesApp:
 
         def deactivate():
             # 確認ダイアログ
-            if not messagebox.askyesno(t('dialog_confirm'), t('license_deactivate_confirm')):
+            if not messagebox.askyesno(t('dialog_confirm'), t('license_deactivate_confirm'), parent=dialog):
                 return
             self.license_manager.deactivate()
-            messagebox.showinfo(t('dialog_complete'), t('license_deactivated'))
+            messagebox.showinfo(t('dialog_complete'), t('license_deactivated'), parent=dialog)
             dialog.destroy()
             self._create_layout()  # Free版として続行
 
@@ -2809,19 +2924,24 @@ class InsightSlidesApp:
             # Free版として続行（ライセンス解除せずそのまま）
 
         # ボタンフレーム
-        btn_frame = ttk.Frame(frame)
+        btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill='x', pady=(10, 0))
 
-        if self.license_manager.is_activated():
-            ttk.Button(btn_frame, text=t('btn_deactivate'), command=deactivate).pack(side='left')
-
-        ttk.Button(btn_frame, text=t('btn_activate'), command=activate, style="Accent.TButton").pack(side='left', padx=5)
+        ttk.Button(
+            btn_frame,
+            text=t('btn_activate'),
+            command=activate,
+            style="Accent.TButton"
+        ).pack(side='left', padx=(0, 10))
 
         if startup_check:
             # 起動時チェックでもFree版で続行可能
             ttk.Button(btn_frame, text=t('btn_continue_free'), command=continue_as_free).pack(side='right')
         else:
             ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
+
+        # フォーカス設定
+        email_entry.focus_set()
 
     def _show_about(self):
         tier = self.license_manager.get_tier_info()
