@@ -1658,10 +1658,10 @@ class InsightSlidesApp:
         license_btn.pack(side='right')
 
     def _create_controls(self, parent):
-        """左サイドバー - 2セクション構成（入力/フォルダ一括）"""
+        """左サイドバー - 入力/フォルダ一括/オプション"""
         frame = ttk.Frame(parent, style='Sidebar.TFrame')
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
-        frame.grid_rowconfigure(3, weight=1)
+        frame.grid_rowconfigure(4, weight=1)
 
         btn_font = (FONT_FAMILY_SANS, 10)
         can_json = self.license_manager.can_json()
@@ -1738,9 +1738,24 @@ class InsightSlidesApp:
                   command=self._show_compare_dialog if can_compare else None,
                   state='normal' if can_compare else 'disabled').grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
+        # ============ オプションセクション ============
+        options_card = ttk.LabelFrame(frame, text=t('panel_settings'), padding=SPACING["sm"])
+        options_card.grid(row=3, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        options_card.grid_columnconfigure(0, weight=1)
+
+        # スピーカーノート含むチェックボックス
+        notes_check = ttk.Checkbutton(options_card, text=t('chk_include_notes'),
+                                       variable=self.include_notes_var)
+        notes_check.grid(row=0, column=0, sticky='w')
+
+        # 自動バックアップチェックボックス
+        backup_check = ttk.Checkbutton(options_card, text=t('setting_auto_backup'),
+                                        variable=self.auto_backup_var)
+        backup_check.grid(row=1, column=0, sticky='w')
+
         # ステータス＆ミニログ
         status_frame = ttk.Frame(frame, style='Main.TFrame')
-        status_frame.grid(row=3, column=0, sticky='sew')
+        status_frame.grid(row=4, column=0, sticky='sew')
 
         # プログレスバー（処理中のみ表示）
         self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
