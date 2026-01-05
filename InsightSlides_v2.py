@@ -1770,17 +1770,17 @@ class InsightSlidesApp:
             tk.Label(batch_card, text="Pro", font=(FONT_FAMILY_SANS, 8, 'bold'),
                      fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).grid(row=0, column=0, sticky='e')
 
-            # 一括抽出ボタン
+            # 一括抽出ボタン（青）
             tk.Button(batch_card, text=t('btn_batch_extract'), font=btn_font,
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                      activebackground=COLOR_PALETTE["brand_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
                       cursor="hand2", command=self._batch_extract_dialog).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-            # 一括更新ボタン
+            # 一括更新ボタン（青）
             tk.Button(batch_card, text=t('btn_batch_update'), font=btn_font,
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                      activebackground=COLOR_PALETTE["brand_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
                       cursor="hand2", command=self._batch_update_dialog).grid(row=2, column=0, sticky='ew')
         else:
@@ -1789,12 +1789,12 @@ class InsightSlidesApp:
             tk.Label(batch_card, text=f"{t('btn_batch_update')} (Pro)", font=btn_font,
                      fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=1, column=0, sticky='w')
 
-        # ============ 2ファイル比較ボタン ============
+        # ============ 2ファイル比較ボタン（青） ============
         compare_text = t('btn_compare') if can_compare else f"{t('btn_compare')} (STD)"
         tk.Button(frame, text=compare_text, font=btn_font,
-                  bg=COLOR_PALETTE["secondary_default"] if can_compare else COLOR_PALETTE["bg_secondary"],
-                  fg=COLOR_PALETTE["text_secondary"] if can_compare else COLOR_PALETTE["text_muted"],
-                  activebackground=COLOR_PALETTE["secondary_hover"] if can_compare else COLOR_PALETTE["bg_secondary"],
+                  bg=COLOR_PALETTE["brand_primary"] if can_compare else COLOR_PALETTE["bg_secondary"],
+                  fg="#FFFFFF" if can_compare else COLOR_PALETTE["text_muted"],
+                  activebackground=COLOR_PALETTE["brand_hover"] if can_compare else COLOR_PALETTE["bg_secondary"],
                   relief="flat", padx=SPACING["md"], pady=SPACING["sm"],
                   cursor="hand2" if can_compare else "arrow",
                   command=self._show_compare_dialog if can_compare else None,
