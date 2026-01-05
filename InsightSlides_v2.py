@@ -532,12 +532,13 @@ class LicenseManager:
     def _extract_email_hash_from_key(key: str) -> Optional[str]:
         """ライセンスキーからメールハッシュ部分を抽出
 
-        形式: INS-PRODUCT-TIER-[HASH]-XXXX-CC
+        形式: {PRODUCT}-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC
+        例: INSS-STD-3101-S467-J72J-IQB3
         ハッシュは4番目のセグメント（0-indexed: 3）
         """
         parts = key.strip().upper().split('-')
-        if len(parts) >= 4:
-            return parts[3]  # 4番目のセグメント
+        if len(parts) >= 6:
+            return parts[3]  # 4番目のセグメント = EMAIL_HASH
         return None
 
     def _load_license(self):
@@ -1374,6 +1375,7 @@ class InsightSlidesApp:
         self.presentation = None
         self.log_buffer = []
         self.extracted_data = []  # グリッド用
+        self.loaded_pptx_path = None  # 読み込んだファイルのパス
         self.include_notes_var = tk.BooleanVar(value=False)
         self.auto_backup_var = tk.BooleanVar(value=self.config_manager.get('auto_backup', True))
 
@@ -2068,6 +2070,9 @@ class InsightSlidesApp:
                     return self._log(t('log_cancelled'), "warning")
 
                 if data:
+                    # 読み込んだファイルパスを保存
+                    self.loaded_pptx_path = path
+
                     # ファイル情報を更新
                     filename = os.path.basename(path)
                     slide_count = meta.get('slide_count', 0)
@@ -2501,7 +2506,19 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "エクスポートするデータがありません")
             return
 
-        path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")])
+        # デフォルトファイル名: 読み込んだファイル名 + .xlsx
+        default_name = ""
+        initial_dir = None
+        if self.loaded_pptx_path:
+            default_name = os.path.splitext(os.path.basename(self.loaded_pptx_path))[0] + ".xlsx"
+            initial_dir = os.path.dirname(self.loaded_pptx_path)
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile=default_name,
+            initialdir=initial_dir
+        )
         if not path:
             return
 
@@ -2514,7 +2531,19 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "エクスポートするデータがありません")
             return
 
-        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
+        # デフォルトファイル名: 読み込んだファイル名 + .json
+        default_name = ""
+        initial_dir = None
+        if self.loaded_pptx_path:
+            default_name = os.path.splitext(os.path.basename(self.loaded_pptx_path))[0] + ".json"
+            initial_dir = os.path.dirname(self.loaded_pptx_path)
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON", "*.json")],
+            initialfile=default_name,
+            initialdir=initial_dir
+        )
         if not path:
             return
 
