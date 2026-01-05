@@ -1025,10 +1025,11 @@ class EditableGrid(ttk.Frame):
         self._all_data: List[Dict] = []
         self._filter_text = ""
         self._font_size = 10  # デフォルトフォントサイズ
+        self._row_height = 22  # デフォルト行の高さ
 
         self._create_widgets()
         self._setup_bindings()
-        self._update_font_size()
+        self._update_style()
 
     def _create_widgets(self):
         # ツールバー
@@ -1063,6 +1064,13 @@ class EditableGrid(ttk.Frame):
         self.font_size_label = ttk.Label(toolbar, text="10")
         self.font_size_label.pack(side="left", padx=2)
         ttk.Button(toolbar, text="+", width=2, command=self._increase_font).pack(side="left")
+
+        # 行の高さ変更
+        ttk.Label(toolbar, text=" 行高:").pack(side="left")
+        ttk.Button(toolbar, text="-", width=2, command=self._decrease_row_height).pack(side="left")
+        self.row_height_label = ttk.Label(toolbar, text="22")
+        self.row_height_label.pack(side="left", padx=2)
+        ttk.Button(toolbar, text="+", width=2, command=self._increase_row_height).pack(side="left")
 
         # Treeview
         tree_frame = ttk.Frame(self)
@@ -1264,24 +1272,38 @@ class EditableGrid(ttk.Frame):
         """フォントサイズを大きくする"""
         if self._font_size < 16:
             self._font_size += 1
-            self._update_font_size()
+            self._update_style()
 
     def _decrease_font(self):
         """フォントサイズを小さくする"""
         if self._font_size > 8:
             self._font_size -= 1
-            self._update_font_size()
+            self._update_style()
 
-    def _update_font_size(self):
-        """Treeviewのフォントサイズを更新"""
+    def _increase_row_height(self):
+        """行の高さを大きくする"""
+        if self._row_height < 60:
+            self._row_height += 4
+            self._update_style()
+
+    def _decrease_row_height(self):
+        """行の高さを小さくする"""
+        if self._row_height > 18:
+            self._row_height -= 4
+            self._update_style()
+
+    def _update_style(self):
+        """Treeviewのスタイルを更新"""
         style = ttk.Style()
         font = (FONT_FAMILY_SANS, self._font_size)
-        # Treeviewのフォント設定
-        style.configure("Treeview", font=font, rowheight=self._font_size + 12)
+        # Treeviewのフォント・行高さ設定
+        style.configure("Treeview", font=font, rowheight=self._row_height)
         style.configure("Treeview.Heading", font=(FONT_FAMILY_SANS, self._font_size, "bold"))
         # ラベル更新
         if hasattr(self, 'font_size_label'):
             self.font_size_label.configure(text=str(self._font_size))
+        if hasattr(self, 'row_height_label'):
+            self.row_height_label.configure(text=str(self._row_height))
 
 
 # ============== 比較機能 ==============
@@ -1879,20 +1901,20 @@ class InsightSlidesApp:
                   cursor="hand2", command=self._apply_grid_to_pptx, state='disabled')
         self.apply_btn.pack(side='right')
 
-        # エクスポートボタン（Excel）
+        # エクスポートボタン（Excel）- 緑系
         self.export_excel_btn = tk.Button(action_bar, text=t('btn_export_excel'), font=(FONT_FAMILY_SANS, 10),
-                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  bg=COLOR_PALETTE["success"], fg="#FFFFFF", relief="flat",
                   padx=SPACING["md"], pady=SPACING["sm"],
-                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  activebackground="#059669",
                   cursor="hand2", command=self._export_grid_excel, state='disabled')
         self.export_excel_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
         # エクスポートボタン（JSON）- Pro版以上
         if self.license_manager.can_json():
             self.export_json_btn = tk.Button(action_bar, text=t('btn_export_json'), font=(FONT_FAMILY_SANS, 10),
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      bg=COLOR_PALETTE["success"], fg="#FFFFFF", relief="flat",
                       padx=SPACING["md"], pady=SPACING["sm"],
-                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      activebackground="#059669",
                       cursor="hand2", command=self._export_grid_json, state='disabled')
             self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
         else:
