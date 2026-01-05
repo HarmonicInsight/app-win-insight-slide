@@ -1091,10 +1091,9 @@ class EditableGrid(ttk.Frame):
                 headers=[t('header_slide'), t('header_id'), t('header_type'), t('header_text')],
                 show_x_scrollbar=True,
                 show_y_scrollbar=True,
-                font=(FONT_FAMILY_SANS, self._font_size),
+                font=(FONT_FAMILY_SANS, self._font_size, "normal"),
                 header_font=(FONT_FAMILY_SANS, self._font_size, "bold"),
                 default_row_height=self._row_height,
-                auto_resize_row_index=True,
             )
             self.sheet.pack(fill="both", expand=True)
 
@@ -1404,15 +1403,14 @@ class EditableGrid(ttk.Frame):
 
     def _update_style(self):
         """グリッドのスタイルを更新"""
-        font = (FONT_FAMILY_SANS, self._font_size)
-
         if TKSHEET_AVAILABLE and self.sheet:
-            # tksheetのスタイル更新
-            self.sheet.font(font)
+            # tksheetのスタイル更新（3要素タプル必須）
+            self.sheet.font((FONT_FAMILY_SANS, self._font_size, "normal"))
             self.sheet.header_font((FONT_FAMILY_SANS, self._font_size, "bold"))
             self.sheet.set_all_row_heights(self._row_height)
         else:
             # Treeviewのスタイル更新
+            font = (FONT_FAMILY_SANS, self._font_size)
             style = ttk.Style()
             style.configure("Treeview", font=font, rowheight=self._row_height)
             style.configure("Treeview.Heading", font=(FONT_FAMILY_SANS, self._font_size, "bold"))
