@@ -31,11 +31,18 @@ import traceback
 from datetime import datetime, timedelta
 
 # insight-common ライセンスモジュールをインポート
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'insight-common', 'license', 'python'))
-from __init__ import (
-    ProductCode, LicenseTier as InsightLicenseTier, LicenseInfo,
-    LicenseValidator, get_feature_limits, TIER_NAMES, TIERS as INSIGHT_TIERS
-)
+import importlib.util
+_license_module_path = os.path.join(os.path.dirname(__file__), 'insight-common', 'license', 'python', '__init__.py')
+_spec = importlib.util.spec_from_file_location("insight_license", _license_module_path)
+_license_module = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_license_module)
+ProductCode = _license_module.ProductCode
+InsightLicenseTier = _license_module.LicenseTier
+LicenseInfo = _license_module.LicenseInfo
+LicenseValidator = _license_module.LicenseValidator
+get_feature_limits = _license_module.get_feature_limits
+TIER_NAMES = _license_module.TIER_NAMES
+INSIGHT_TIERS = _license_module.TIERS
 import threading
 from pathlib import Path
 from typing import Dict, Tuple, List, Optional
