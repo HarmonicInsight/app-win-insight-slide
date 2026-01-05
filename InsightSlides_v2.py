@@ -1024,9 +1024,11 @@ class EditableGrid(ttk.Frame):
         self._editing_column = None
         self._all_data: List[Dict] = []
         self._filter_text = ""
+        self._font_size = 10  # デフォルトフォントサイズ
 
         self._create_widgets()
         self._setup_bindings()
+        self._update_font_size()
 
     def _create_widgets(self):
         # ツールバー
@@ -1053,6 +1055,14 @@ class EditableGrid(ttk.Frame):
         self.undo_btn.pack(side="left", padx=2)
         self.redo_btn = ttk.Button(toolbar, text=t('btn_redo'), command=self._do_redo)
         self.redo_btn.pack(side="left", padx=2)
+
+        # フォントサイズ変更
+        ttk.Separator(toolbar, orient="vertical").pack(side="left", fill="y", padx=5)
+        ttk.Label(toolbar, text="文字:").pack(side="left")
+        ttk.Button(toolbar, text="-", width=2, command=self._decrease_font).pack(side="left")
+        self.font_size_label = ttk.Label(toolbar, text="10")
+        self.font_size_label.pack(side="left", padx=2)
+        ttk.Button(toolbar, text="+", width=2, command=self._increase_font).pack(side="left")
 
         # Treeview
         tree_frame = ttk.Frame(self)
@@ -1112,7 +1122,9 @@ class EditableGrid(ttk.Frame):
         self._editing_item = item
         self._editing_column = column
 
-        self._edit_widget = tk.Entry(self.tree, font=FONTS["body"])
+        # 編集ウィジェットのフォントをTreeviewと同じサイズに
+        edit_font = (FONT_FAMILY_SANS, self._font_size)
+        self._edit_widget = tk.Entry(self.tree, font=edit_font)
         self._edit_widget.insert(0, current_value)
         self._edit_widget.select_range(0, tk.END)
         self._edit_widget.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
@@ -1247,6 +1259,29 @@ class EditableGrid(ttk.Frame):
                 "text": self.tree.set(item, "text"),
             })
         return result
+
+    def _increase_font(self):
+        """フォントサイズを大きくする"""
+        if self._font_size < 16:
+            self._font_size += 1
+            self._update_font_size()
+
+    def _decrease_font(self):
+        """フォントサイズを小さくする"""
+        if self._font_size > 8:
+            self._font_size -= 1
+            self._update_font_size()
+
+    def _update_font_size(self):
+        """Treeviewのフォントサイズを更新"""
+        style = ttk.Style()
+        font = (FONT_FAMILY_SANS, self._font_size)
+        # Treeviewのフォント設定
+        style.configure("Treeview", font=font, rowheight=self._font_size + 12)
+        style.configure("Treeview.Heading", font=(FONT_FAMILY_SANS, self._font_size, "bold"))
+        # ラベル更新
+        if hasattr(self, 'font_size_label'):
+            self.font_size_label.configure(text=str(self._font_size))
 
 
 # ============== 比較機能 ==============
@@ -1659,9 +1694,14 @@ class InsightSlidesApp:
 
     def _create_controls(self, parent):
         """左サイドバー - 入力/フォルダ一括/オプション"""
-        frame = ttk.Frame(parent, style='Sidebar.TFrame')
+        # サイドバーの幅を固定
+        SIDEBAR_WIDTH = 200
+
+        frame = ttk.Frame(parent, style='Sidebar.TFrame', width=SIDEBAR_WIDTH)
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
+        frame.grid_propagate(False)  # 幅を固定
         frame.grid_rowconfigure(4, weight=1)
+        frame.grid_columnconfigure(0, weight=1)
 
         btn_font = (FONT_FAMILY_SANS, 10)
         can_json = self.license_manager.can_json()
@@ -1935,8 +1975,8 @@ class InsightSlidesApp:
 
     def _update_mini_log(self, text):
         """ミニログラベルを更新（最新メッセージのみ）"""
-        # 長すぎるテキストは省略
-        max_len = 50
+        # 長すぎるテキストは省略（サイドバー幅に合わせる）
+        max_len = 30
         display_text = text[:max_len] + "..." if len(text) > max_len else text
         self.mini_log_label.configure(text=display_text)
 
