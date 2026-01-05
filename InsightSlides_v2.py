@@ -1527,36 +1527,39 @@ class InsightSlidesApp:
         self._create_output(content)
 
     def _create_header(self, parent):
-        """洗練されたヘッダー - 余白で区切り、シンプルに"""
+        """ヘッダー - Forguncy Insightスタイル"""
         header = tk.Frame(parent, bg=COLOR_PALETTE["bg_primary"])
         header.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["lg"]))
 
-        # 左: タイトル + サブタイトル
+        # 左: タイトル + バージョン + バッジ
         left = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         left.pack(side='left')
 
-        # アプリ名（シンプルに）
+        # アプリ名
         tk.Label(left, text="Insight Slides", font=FONTS["display"],
                  fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
 
-        # ライセンスバッジ（あれば）
+        # バージョン
+        tk.Label(left, text=f"v{APP_VERSION}", font=FONTS["small"],
+                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["md"], 0))
+
+        # ライセンスバッジ（常に表示）
         tier = self.license_manager.get_tier_info()
-        if tier['name'] != 'Free':
-            badge = tk.Label(left, text=f" {tier['name']} ", font=FONTS["small"],
-                            fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["brand_light"],
-                            padx=6, pady=2)
-            badge.pack(side='left', padx=(SPACING["sm"], 0))
+        tier_name = tier['name_ja'] if get_language() == 'ja' else tier['name']
+        badge = tk.Label(left, text=f" {tier_name} ", font=FONTS["small"],
+                        fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["brand_light"],
+                        padx=8, pady=2)
+        badge.pack(side='left', padx=(SPACING["md"], 0))
 
-        # サブタイトル
-        tk.Label(left, text=t('app_subtitle'), font=FONTS["caption"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["lg"], 0))
-
-        # 右: バージョン
+        # 右: ライセンスボタン
         right = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         right.pack(side='right')
 
-        tk.Label(right, text=f"v{APP_VERSION}", font=FONTS["small"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='right')
+        license_btn = tk.Button(right, text=f"🔑 {t('btn_license')}", font=FONTS["small"],
+                                fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"],
+                                bd=0, cursor="hand2", activeforeground=COLOR_PALETTE["brand_secondary"],
+                                command=self._show_license_dialog)
+        license_btn.pack(side='right')
 
     def _create_controls(self, parent):
         """左サイドバー - 2セクション構成（入力/フォルダ一括）"""
