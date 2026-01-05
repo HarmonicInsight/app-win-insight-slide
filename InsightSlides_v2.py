@@ -71,10 +71,13 @@ LANGUAGES = {
         'panel_update_run': 'Run Update',
         'panel_pro_features': 'Pro Features',
         'btn_single_file': 'Select File',
-        'btn_batch_folder': 'Folder Batch',
         'btn_from_excel': 'From Excel',
         'btn_from_json': 'From JSON',
-        'btn_batch_update': 'Folder Batch Update',
+        'panel_batch': 'Folder Batch Processing',
+        'btn_batch_export_excel': 'Export to Folder (Excel)',
+        'btn_batch_export_json': 'Export to Folder (JSON)',
+        'btn_batch_import_excel': 'Import from Folder (Excel)',
+        'btn_batch_import_json': 'Import from Folder (JSON)',
         'btn_diff_preview': 'Diff Preview',
         'btn_compare_pptx': 'Compare PPTX',
         'btn_cancel': 'Stop',
@@ -201,10 +204,13 @@ LANGUAGES = {
         'panel_update_run': '更新実行',
         'panel_pro_features': '拡張機能',
         'btn_single_file': 'ファイル選択',
-        'btn_batch_folder': 'フォルダー一括',
         'btn_from_excel': 'Excelから更新',
         'btn_from_json': 'JSONから更新',
-        'btn_batch_update': 'フォルダー一括更新',
+        'panel_batch': 'フォルダ一括処理',
+        'btn_batch_export_excel': 'フォルダに出力 (Excel)',
+        'btn_batch_export_json': 'フォルダに出力 (JSON)',
+        'btn_batch_import_excel': 'フォルダから読込 (Excel)',
+        'btn_batch_import_json': 'フォルダから読込 (JSON)',
         'btn_diff_preview': '差分プレビュー',
         'btn_compare_pptx': 'PPTX比較',
         'btn_cancel': '中止',
@@ -1291,7 +1297,7 @@ class InsightSlidesApp:
         """左サイドバー - カード構造で整理"""
         frame = ttk.Frame(parent, style='Sidebar.TFrame')
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
-        frame.grid_rowconfigure(4, weight=1)
+        frame.grid_rowconfigure(5, weight=1)
 
         # モード切替（セグメントコントロール風）
         mode_card = ttk.LabelFrame(frame, text=t('mode_section'), padding=SPACING["lg"])
@@ -1342,10 +1348,15 @@ class InsightSlidesApp:
         self._create_extract_panel()
         self._create_update_panel()
 
+        # フォルダ一括処理セクション
+        batch_card = ttk.LabelFrame(frame, text="", padding=SPACING["md"])
+        batch_card.grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        self._create_batch_panel(batch_card)
+
         # 詳細オプション（折りたたみ）
         self.advanced_var = tk.BooleanVar(value=self.config_manager.get('advanced_expanded', False))
         self.advanced_frame = ttk.LabelFrame(frame, text=f"▶ {t('advanced_options')}", padding=SPACING["md"])
-        self.advanced_frame.grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        self.advanced_frame.grid(row=3, column=0, sticky='ew', pady=(0, SPACING["md"]))
         self.advanced_frame.grid_columnconfigure(0, weight=1)
         self.advanced_frame.bind("<Button-1>", self._toggle_advanced)
 
@@ -1358,7 +1369,7 @@ class InsightSlidesApp:
 
         # ステータス＆ミニログ
         status_frame = ttk.Frame(frame, style='Main.TFrame')
-        status_frame.grid(row=4, column=0, sticky='sew')
+        status_frame.grid(row=5, column=0, sticky='sew')
 
         # プログレスバー（処理中のみ表示）
         self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
@@ -1405,18 +1416,7 @@ class InsightSlidesApp:
                   bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
                   activebackground=COLOR_PALETTE["brand_hover"],
                   padx=SPACING["lg"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._extract_single).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-
-        # セカンダリボタン
-        if self.license_manager.can_batch():
-            tk.Button(self.extract_frame, text=t('btn_batch_folder'), font=(FONT_FAMILY_SANS, 10),
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
-                      padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._extract_batch).grid(row=2, column=0, sticky='ew')
-        else:
-            ttk.Label(self.extract_frame, text=f"{t('btn_batch_folder')} (Standard+)",
-                      style='Muted.TLabel').grid(row=2, column=0, sticky='w')
+                  cursor="hand2", command=self._extract_single).grid(row=1, column=0, sticky='ew')
 
     def _create_update_panel(self):
         """更新パネル - データソース選択"""
@@ -1443,26 +1443,67 @@ class InsightSlidesApp:
                   bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                   activebackground=COLOR_PALETTE["secondary_hover"],
                   padx=SPACING["md"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+                  cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew')
 
-        # フォルダ一括更新ボタン (Standard+)
-        if self.license_manager.can_batch():
-            tk.Button(self.update_frame, text=t('btn_batch_update'), font=(FONT_FAMILY_SANS, 10),
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
-                      padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._update_batch).grid(row=3, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-        else:
-            ttk.Label(self.update_frame, text=f"{t('btn_batch_update')} (Standard+)",
-                      style='Muted.TLabel').grid(row=3, column=0, sticky='w', pady=(0, SPACING["sm"]))
+    def _create_batch_panel(self, parent):
+        """フォルダ一括処理パネル"""
+        # ヘッダー（タイトル + PRO バッジ）
+        header_frame = tk.Frame(parent, bg=COLOR_PALETTE["bg_primary"])
+        header_frame.pack(fill='x', pady=(0, SPACING["sm"]))
 
-        # Pro機能: 差分プレビュー
+        tk.Label(header_frame, text=t('panel_batch'), font=FONTS["body_bold"],
+                 fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
+
         if self.license_manager.is_pro():
-            tk.Button(self.update_frame, text=t('btn_diff_preview'), font=(FONT_FAMILY_SANS, 10),
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
-                      padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._run_preview).grid(row=4, column=0, sticky='ew', pady=(SPACING["sm"], 0))
+            tk.Label(header_frame, text="PRO", font=(FONT_FAMILY_SANS, 9, 'bold'),
+                     fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["sm"], 0))
+
+        # ボタンスタイル（アウトライン）
+        outline_color = COLOR_PALETTE["brand_primary"]
+
+        # 出力ボタン（Excel）
+        export_excel_btn = tk.Button(parent, text=t('btn_batch_export_excel'), font=(FONT_FAMILY_SANS, 10),
+                                     bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                     relief="solid", bd=1, highlightthickness=0,
+                                     activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                     padx=SPACING["md"], pady=SPACING["sm"],
+                                     cursor="hand2", command=lambda: self._extract_batch("excel"))
+        export_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+
+        # 出力ボタン（JSON）- Pro のみ
+        if self.license_manager.is_pro():
+            export_json_btn = tk.Button(parent, text=t('btn_batch_export_json'), font=(FONT_FAMILY_SANS, 10),
+                                        bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                        relief="solid", bd=1, highlightthickness=0,
+                                        activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                        padx=SPACING["md"], pady=SPACING["sm"],
+                                        cursor="hand2", command=lambda: self._extract_batch("json"))
+            export_json_btn.pack(fill='x', pady=(0, SPACING["sm"]))
+        else:
+            ttk.Label(parent, text=f"{t('btn_batch_export_json')} (Pro)",
+                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["sm"]))
+
+        # 読込ボタン（Excel）
+        import_excel_btn = tk.Button(parent, text=t('btn_batch_import_excel'), font=(FONT_FAMILY_SANS, 10),
+                                     bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                     relief="solid", bd=1, highlightthickness=0,
+                                     activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                     padx=SPACING["md"], pady=SPACING["sm"],
+                                     cursor="hand2", command=lambda: self._update_batch("excel"))
+        import_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+
+        # 読込ボタン（JSON）- Pro のみ
+        if self.license_manager.is_pro():
+            import_json_btn = tk.Button(parent, text=t('btn_batch_import_json'), font=(FONT_FAMILY_SANS, 10),
+                                        bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                        relief="solid", bd=1, highlightthickness=0,
+                                        activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                        padx=SPACING["md"], pady=SPACING["sm"],
+                                        cursor="hand2", command=lambda: self._update_batch("json"))
+            import_json_btn.pack(fill='x')
+        else:
+            ttk.Label(parent, text=f"{t('btn_batch_import_json')} (Pro)",
+                      style='Muted.TLabel').pack(anchor='w')
 
     def _create_advanced_options(self):
         # スピーカーノート
@@ -1935,19 +1976,21 @@ class InsightSlidesApp:
 
         threading.Thread(target=run, daemon=True).start()
 
-    def _extract_batch(self):
+    def _extract_batch(self, format: str = "excel"):
+        """フォルダ一括抽出 (excel/json)"""
         if self.processing:
             return
-        folder = filedialog.askdirectory(title="フォルダを選択")
+        folder = filedialog.askdirectory(title="フォルダを選択 (PPTXファイルを含む)")
         if not folder:
             return
 
         include_notes = self.include_notes_var.get() if self.license_manager.is_pro() else False
+        ext = ".xlsx" if format == "excel" else ".json"
 
         def run():
             try:
                 self._start_progress()
-                self._update_output_safe(f"\n📁 フォルダ処理: {folder}\n", clear=True)
+                self._update_output_safe(f"\n📁 フォルダ一括出力 ({format.upper()}): {folder}\n", clear=True)
 
                 files = [f for f in Path(folder).glob("*.pptx") if not f.name.startswith("~$")]
                 if not files:
@@ -1962,11 +2005,11 @@ class InsightSlidesApp:
                     self._log(f"[{i}/{len(files)}] {f.name}")
                     data, meta = self.extract_from_ppt(str(f), include_notes)
                     if data:
-                        out = str(f.with_suffix('')) + "_抽出.xlsx"
-                        self.save_to_file(data, out, "excel")
+                        out = str(f.with_suffix('')) + f"_抽出{ext}"
+                        self.save_to_file(data, out, format)
                         total += len(data)
 
-                self._log(f"✅ バッチ抽出完了: {total}件", "success")
+                self._log(f"✅ バッチ抽出完了: {total}件 ({format.upper()})", "success")
             except Exception as e:
                 self._log(f"エラー: {e}", "error")
             finally:
@@ -2112,29 +2155,28 @@ class InsightSlidesApp:
     def _update_json(self):
         self._run_update("json")
 
-    def _update_batch(self):
+    def _update_batch(self, format: str = "excel"):
         """フォルダ内のExcel/JSONファイルとPPTXを一括更新"""
         if self.processing:
             return
 
-        folder = filedialog.askdirectory(title="フォルダを選択 (Excel/JSON + PPTX)")
+        ext = ".xlsx" if format == "excel" else ".json"
+        folder = filedialog.askdirectory(title=f"フォルダを選択 (*_抽出{ext} + PPTX)")
         if not folder:
             return
 
         def run():
             try:
                 self._start_progress()
-                self._update_output_safe(f"\n📁 フォルダ一括更新: {folder}\n", clear=True)
+                self._update_output_safe(f"\n📁 フォルダ一括読込 ({format.upper()}): {folder}\n", clear=True)
 
                 folder_path = Path(folder)
 
-                # Excel/JSONファイルを検索
-                excel_files = list(folder_path.glob("*_抽出.xlsx"))
-                json_files = list(folder_path.glob("*_抽出.json"))
-                data_files = excel_files + json_files
+                # 指定形式のファイルを検索
+                data_files = list(folder_path.glob(f"*_抽出{ext}"))
 
                 if not data_files:
-                    return self._log("抽出ファイル (*_抽出.xlsx / *_抽出.json) が見つかりません", "warning")
+                    return self._log(f"抽出ファイル (*_抽出{ext}) が見つかりません", "warning")
 
                 self._log(f"発見: {len(data_files)}件のデータファイル")
                 updated_count = 0
@@ -2155,8 +2197,7 @@ class InsightSlidesApp:
                     self._log(f"[{i}/{len(data_files)}] {pptx_path.name}")
 
                     try:
-                        source = "excel" if data_file.suffix == ".xlsx" else "json"
-                        updates = self._load_updates(str(data_file), source)
+                        updates = self._load_updates(str(data_file), format)
 
                         if not updates:
                             self._log(f"  → 更新データなし", "warning")
@@ -2175,7 +2216,7 @@ class InsightSlidesApp:
                         self._log(f"  → エラー: {e}", "error")
                         error_count += 1
 
-                self._log(f"\n✅ バッチ更新完了: {updated_count}件成功, {error_count}件エラー", "success")
+                self._log(f"\n✅ バッチ読込完了 ({format.upper()}): {updated_count}件成功, {error_count}件エラー", "success")
 
             except Exception as e:
                 self._log(f"エラー: {e}", "error")
