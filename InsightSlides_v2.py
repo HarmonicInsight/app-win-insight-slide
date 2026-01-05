@@ -566,7 +566,7 @@ def get_language() -> str:
 
 
 # ============== ライセンス設定（insight-common 統合） ==============
-PRODUCT_CODE = ProductCode.SLIDE
+PRODUCT_CODE = "INS"  # InsightSlide製品コードプレフィックス
 EXPIRY_WARNING_DAYS = 30  # 期限切れ警告の日数
 
 # ローカルティア定義（FREE追加）
