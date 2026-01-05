@@ -704,10 +704,10 @@ class EditableGrid(ttk.Frame):
         self.tree.heading("type", text=t('header_type'))
         self.tree.heading("text", text=t('header_text'))
 
-        self.tree.column("slide", width=80, anchor="center")
-        self.tree.column("id", width=100)
-        self.tree.column("type", width=100)
-        self.tree.column("text", width=500)
+        self.tree.column("slide", width=80, minwidth=60, anchor="center", stretch=False)
+        self.tree.column("id", width=100, minwidth=80, stretch=False)
+        self.tree.column("type", width=80, minwidth=60, stretch=False)
+        self.tree.column("text", width=800, minwidth=300, stretch=True)
 
         vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
