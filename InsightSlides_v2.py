@@ -499,10 +499,28 @@ class LicenseManager:
 
     @staticmethod
     def _compute_email_hash(email: str) -> str:
-        """メールアドレスからハッシュを生成（SHA256の先頭4文字、大文字）"""
+        """メールアドレスからハッシュを生成（Base36エンコード、4文字）
+
+        insight-commonのチェックサム計算と同様のBase36形式を使用
+        """
         normalized = email.strip().lower()
-        hash_bytes = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
-        return hash_bytes[:4].upper()
+        hash_bytes = hashlib.sha256(normalized.encode('utf-8')).digest()
+
+        # 最初の4バイトを整数に変換
+        hash_int = int.from_bytes(hash_bytes[:4], 'big')
+
+        # Base36エンコード（insight-commonと同じ文字セット）
+        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+        result = ""
+        while hash_int:
+            result = chars[hash_int % 36] + result
+            hash_int //= 36
+
+        # 4文字に正規化（0埋めまたは末尾4文字）
+        if len(result) < 4:
+            return result.zfill(4)
+        return result[-4:]
 
     @staticmethod
     def _extract_email_hash_from_key(key: str) -> Optional[str]:
