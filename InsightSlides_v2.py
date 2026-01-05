@@ -10,7 +10,7 @@ by Harmonic Insight
 - インライングリッド編集
 - PPTX比較機能
 - フィルタ機能
-- 統一ライセンス形式 (INS-SLIDE-{TIER}-XXXX-XXXX-CC)
+- 統一ライセンス形式 (INSS-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC)
 - 折りたたみ可能なオプション
 """
 import tkinter as tk
@@ -241,6 +241,8 @@ LANGUAGES = {
         'license_enter_key': 'Enter License Key:',
         'license_activated': '{0} has been activated',
         'license_deactivated': 'License deactivated',
+        'license_deactivate_confirm': 'Deactivate license?\nThe app will run as Free version.',
+        'btn_continue_free': 'Continue as Free',
         'license_invalid': 'Invalid license key',
         'license_email_mismatch': 'Email address does not match the license key',
         'license_enter_prompt': 'Please enter a license key',
@@ -429,6 +431,8 @@ LANGUAGES = {
         'license_enter_key': 'ライセンスキー:',
         'license_activated': '{0}版がアクティベートされました',
         'license_deactivated': 'ライセンスを解除しました',
+        'license_deactivate_confirm': 'ライセンスを解除しますか？\n解除後はFree版として動作します。',
+        'btn_continue_free': 'Free版で続行',
         'license_invalid': '無効なライセンスキーです',
         'license_email_mismatch': 'メールアドレスがライセンスキーと一致しません',
         'license_enter_prompt': 'ライセンスキーを入力してください',
@@ -567,6 +571,7 @@ EXPIRY_WARNING_DAYS = 30  # 期限切れ警告の日数
 
 # ローカルティア定義（FREE追加）
 class LicenseTier:
+    FREE = "FREE"
     TRIAL = "TRIAL"
     STD = "STD"
     PRO = "PRO"
@@ -575,14 +580,15 @@ class LicenseTier:
 # ティア別設定（InsightSlide固有）
 # json: 1ファイルJSON入出力, batch: フォルダ一括処理, compare: 2ファイル比較
 TIERS = {
+    LicenseTier.FREE: {'name': 'Free', 'name_ja': 'フリー', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'json': False, 'compare': False},
     LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
-    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': False, 'json': False, 'compare': True},
+    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
 }
 
-# 未認証時のデフォルト設定（機能制限あり、認証必須）
-TIER_NOT_ACTIVATED = {'name': 'Not Activated', 'name_ja': '未認証', 'badge': '-', 'update_limit': 0, 'batch': False, 'json': False, 'compare': False}
+# 未認証時のデフォルト設定（Free版と同じ）
+TIER_NOT_ACTIVATED = TIERS[LicenseTier.FREE]
 
 
 class LicenseManager:
@@ -610,12 +616,13 @@ class LicenseManager:
     def _extract_email_hash_from_key(key: str) -> Optional[str]:
         """ライセンスキーからメールハッシュ部分を抽出
 
-        形式: INS-PRODUCT-TIER-[HASH]-XXXX-CC
+        形式: {PRODUCT}-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC
+        例: INSS-STD-3101-S467-J72J-IQB3
         ハッシュは4番目のセグメント（0-indexed: 3）
         """
         parts = key.strip().upper().split('-')
-        if len(parts) >= 4:
-            return parts[3]  # 4番目のセグメント
+        if len(parts) >= 6:
+            return parts[3]  # 4番目のセグメント = EMAIL_HASH
         return None
 
     def _load_license(self):
@@ -1464,6 +1471,7 @@ class InsightSlidesApp:
         self.presentation = None
         self.log_buffer = []
         self.extracted_data = []  # グリッド用
+        self.loaded_pptx_path = None  # 読み込んだファイルのパス
         self.include_notes_var = tk.BooleanVar(value=False)
         self.auto_backup_var = tk.BooleanVar(value=self.config_manager.get('auto_backup', True))
 
@@ -1615,36 +1623,39 @@ class InsightSlidesApp:
         self._create_output(content)
 
     def _create_header(self, parent):
-        """洗練されたヘッダー - 余白で区切り、シンプルに"""
+        """ヘッダー - Forguncy Insightスタイル"""
         header = tk.Frame(parent, bg=COLOR_PALETTE["bg_primary"])
         header.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["lg"]))
 
-        # 左: タイトル + サブタイトル
+        # 左: タイトル + バージョン + バッジ
         left = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         left.pack(side='left')
 
-        # アプリ名（シンプルに）
+        # アプリ名
         tk.Label(left, text="Insight Slides", font=FONTS["display"],
                  fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
 
-        # ライセンスバッジ（あれば）
+        # バージョン
+        tk.Label(left, text=f"v{APP_VERSION}", font=FONTS["small"],
+                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["md"], 0))
+
+        # ライセンスバッジ（常に表示）
         tier = self.license_manager.get_tier_info()
-        if tier['name'] != 'Free':
-            badge = tk.Label(left, text=f" {tier['name']} ", font=FONTS["small"],
-                            fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["brand_light"],
-                            padx=6, pady=2)
-            badge.pack(side='left', padx=(SPACING["sm"], 0))
+        tier_name = tier['name_ja'] if get_language() == 'ja' else tier['name']
+        badge = tk.Label(left, text=f" {tier_name} ", font=FONTS["small"],
+                        fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["brand_light"],
+                        padx=8, pady=2)
+        badge.pack(side='left', padx=(SPACING["md"], 0))
 
-        # サブタイトル
-        tk.Label(left, text=t('app_subtitle'), font=FONTS["caption"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["lg"], 0))
-
-        # 右: バージョン
+        # 右: ライセンスボタン
         right = tk.Frame(header, bg=COLOR_PALETTE["bg_primary"])
         right.pack(side='right')
 
-        tk.Label(right, text=f"v{APP_VERSION}", font=FONTS["small"],
-                 fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='right')
+        license_btn = tk.Button(right, text=f"🔑 {t('btn_license')}", font=FONTS["small"],
+                                fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"],
+                                bd=0, cursor="hand2", activeforeground=COLOR_PALETTE["text_primary"],
+                                command=self._show_license_dialog)
+        license_btn.pack(side='right')
 
     def _create_controls(self, parent):
         """左サイドバー - 2セクション構成（入力/フォルダ一括）"""
@@ -2158,6 +2169,9 @@ class InsightSlidesApp:
                     return self._log(t('log_cancelled'), "warning")
 
                 if data:
+                    # 読み込んだファイルパスを保存
+                    self.loaded_pptx_path = path
+
                     # ファイル情報を更新
                     filename = os.path.basename(path)
                     slide_count = meta.get('slide_count', 0)
@@ -2591,7 +2605,19 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "エクスポートするデータがありません")
             return
 
-        path = filedialog.asksaveasfilename(defaultextension=".xlsx", filetypes=[("Excel", "*.xlsx")])
+        # デフォルトファイル名: 読み込んだファイル名 + .xlsx
+        default_name = ""
+        initial_dir = None
+        if self.loaded_pptx_path:
+            default_name = os.path.splitext(os.path.basename(self.loaded_pptx_path))[0] + ".xlsx"
+            initial_dir = os.path.dirname(self.loaded_pptx_path)
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel", "*.xlsx")],
+            initialfile=default_name,
+            initialdir=initial_dir
+        )
         if not path:
             return
 
@@ -2604,7 +2630,19 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "エクスポートするデータがありません")
             return
 
-        path = filedialog.asksaveasfilename(defaultextension=".json", filetypes=[("JSON", "*.json")])
+        # デフォルトファイル名: 読み込んだファイル名 + .json
+        default_name = ""
+        initial_dir = None
+        if self.loaded_pptx_path:
+            default_name = os.path.splitext(os.path.basename(self.loaded_pptx_path))[0] + ".json"
+            initial_dir = os.path.dirname(self.loaded_pptx_path)
+
+        path = filedialog.asksaveasfilename(
+            defaultextension=".json",
+            filetypes=[("JSON", "*.json")],
+            initialfile=default_name,
+            initialdir=initial_dir
+        )
         if not path:
             return
 
@@ -2763,7 +2801,8 @@ class InsightSlidesApp:
         dialog.configure(bg=COLOR_PALETTE["background"])
 
         if startup_check:
-            dialog.protocol("WM_DELETE_WINDOW", lambda: None)  # 閉じるボタン無効
+            # 閉じるボタンでFree版として続行
+            dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
         # メインフレーム
         main_frame = ttk.Frame(dialog, padding=25)
@@ -2872,11 +2911,17 @@ class InsightSlidesApp:
                 error_var.set(msg)
 
         def deactivate():
+            # 確認ダイアログ
+            if not messagebox.askyesno(t('dialog_confirm'), t('license_deactivate_confirm'), parent=dialog):
+                return
             self.license_manager.deactivate()
             messagebox.showinfo(t('dialog_complete'), t('license_deactivated'), parent=dialog)
             dialog.destroy()
-            self._create_layout()
-            self.root.after(100, lambda: self._show_license_dialog(startup_check=True))
+            self._create_layout()  # Free版として続行
+
+        def continue_as_free():
+            dialog.destroy()
+            # Free版として続行（ライセンス解除せずそのまま）
 
         # ボタンフレーム
         btn_frame = ttk.Frame(main_frame)
@@ -2889,12 +2934,11 @@ class InsightSlidesApp:
             style="Accent.TButton"
         ).pack(side='left', padx=(0, 10))
 
-        if not startup_check:
-            ttk.Button(
-                btn_frame,
-                text=t('btn_close'),
-                command=dialog.destroy
-            ).pack(side='right')
+        if startup_check:
+            # 起動時チェックでもFree版で続行可能
+            ttk.Button(btn_frame, text=t('btn_continue_free'), command=continue_as_free).pack(side='right')
+        else:
+            ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
 
         # フォーカス設定
         email_entry.focus_set()
