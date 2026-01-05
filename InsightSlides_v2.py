@@ -143,6 +143,8 @@ LANGUAGES = {
         'license_enter_key': 'Enter License Key:',
         'license_activated': '{0} has been activated',
         'license_deactivated': 'License deactivated',
+        'license_deactivate_confirm': 'Deactivate license?\nThe app will run as Free version.',
+        'btn_continue_free': 'Continue as Free',
         'license_invalid': 'Invalid license key',
         'license_email_mismatch': 'Email address does not match the license key',
         'license_enter_prompt': 'Please enter a license key',
@@ -331,6 +333,8 @@ LANGUAGES = {
         'license_enter_key': 'ライセンスキー:',
         'license_activated': '{0}版がアクティベートされました',
         'license_deactivated': 'ライセンスを解除しました',
+        'license_deactivate_confirm': 'ライセンスを解除しますか？\n解除後はFree版として動作します。',
+        'btn_continue_free': 'Free版で続行',
         'license_invalid': '無効なライセンスキーです',
         'license_email_mismatch': 'メールアドレスがライセンスキーと一致しません',
         'license_enter_prompt': 'ライセンスキーを入力してください',
@@ -469,6 +473,7 @@ EXPIRY_WARNING_DAYS = 30  # 期限切れ警告の日数
 
 # ローカルティア定義（FREE追加）
 class LicenseTier:
+    FREE = "FREE"
     TRIAL = "TRIAL"
     STD = "STD"
     PRO = "PRO"
@@ -477,14 +482,15 @@ class LicenseTier:
 # ティア別設定（InsightSlide固有）
 # json: 1ファイルJSON入出力, batch: フォルダ一括処理, compare: 2ファイル比較
 TIERS = {
+    LicenseTier.FREE: {'name': 'Free', 'name_ja': 'フリー', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'json': False, 'compare': False},
     LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
-    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': False, 'json': False, 'compare': True},
+    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
 }
 
-# 未認証時のデフォルト設定（機能制限あり、認証必須）
-TIER_NOT_ACTIVATED = {'name': 'Not Activated', 'name_ja': '未認証', 'badge': '-', 'update_limit': 0, 'batch': False, 'json': False, 'compare': False}
+# 未認証時のデフォルト設定（Free版と同じ）
+TIER_NOT_ACTIVATED = TIERS[LicenseTier.FREE]
 
 
 class LicenseManager:
@@ -2666,7 +2672,8 @@ class InsightSlidesApp:
         dialog.grab_set()
 
         if startup_check:
-            dialog.protocol("WM_DELETE_WINDOW", lambda: None)  # 閉じるボタン無効
+            # 閉じるボタンでFree版として続行
+            dialog.protocol("WM_DELETE_WINDOW", dialog.destroy)
 
         frame = ttk.Frame(dialog, padding=20)
         frame.pack(fill='both', expand=True)
@@ -2757,12 +2764,17 @@ class InsightSlidesApp:
                 error_var.set(msg)
 
         def deactivate():
+            # 確認ダイアログ
+            if not messagebox.askyesno(t('dialog_confirm'), t('license_deactivate_confirm')):
+                return
             self.license_manager.deactivate()
             messagebox.showinfo(t('dialog_complete'), t('license_deactivated'))
             dialog.destroy()
-            self._create_layout()
-            # 認証解除後は再度認証ダイアログを表示
-            self.root.after(100, lambda: self._show_license_dialog(startup_check=True))
+            self._create_layout()  # Free版として続行
+
+        def continue_as_free():
+            dialog.destroy()
+            # Free版として続行（ライセンス解除せずそのまま）
 
         # ボタンフレーム
         btn_frame = ttk.Frame(frame)
@@ -2773,7 +2785,10 @@ class InsightSlidesApp:
 
         ttk.Button(btn_frame, text=t('btn_activate'), command=activate, style="Accent.TButton").pack(side='left', padx=5)
 
-        if not startup_check:
+        if startup_check:
+            # 起動時チェックでもFree版で続行可能
+            ttk.Button(btn_frame, text=t('btn_continue_free'), command=continue_as_free).pack(side='right')
+        else:
             ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
 
     def _show_about(self):
