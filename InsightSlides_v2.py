@@ -2554,9 +2554,13 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "グリッドにデータがありません")
             return
 
-        ppt_path = filedialog.askopenfilename(title="更新するPowerPointを選択", filetypes=[("PowerPoint", "*.pptx")])
-        if not ppt_path:
-            return
+        # 読み込んだファイルがあればそれを使用、なければ選択ダイアログ
+        if self.loaded_pptx_path and os.path.exists(self.loaded_pptx_path):
+            ppt_path = self.loaded_pptx_path
+        else:
+            ppt_path = filedialog.askopenfilename(title="更新するPowerPointを選択", filetypes=[("PowerPoint", "*.pptx")])
+            if not ppt_path:
+                return
 
         # グリッドデータから更新辞書作成
         grid_data = self.grid_view.get_data()
@@ -2575,6 +2579,21 @@ class InsightSlidesApp:
             messagebox.showwarning("警告", "有効な更新データがありません")
             return
 
+        # デフォルト保存名: 元ファイル名_更新済み.pptx
+        default_name = os.path.splitext(os.path.basename(ppt_path))[0] + "_更新済み.pptx"
+        initial_dir = os.path.dirname(ppt_path)
+
+        # 先に保存先を選択させる
+        out_path = filedialog.asksaveasfilename(
+            title="保存先を選択",
+            defaultextension=".pptx",
+            filetypes=[("PowerPoint", "*.pptx")],
+            initialfile=default_name,
+            initialdir=initial_dir
+        )
+        if not out_path:
+            return
+
         def run():
             try:
                 self._start_progress()
@@ -2583,15 +2602,9 @@ class InsightSlidesApp:
 
                 updated, skipped, _ = self._update_ppt(ppt_path, updates)
 
-                def save():
-                    out = filedialog.asksaveasfilename(defaultextension=".pptx", filetypes=[("PowerPoint", "*.pptx")],
-                                                       initialfile=os.path.splitext(os.path.basename(ppt_path))[0] + "_更新済み.pptx")
-                    if out:
-                        self.presentation.save(out)
-                        self._log(f"✅ 保存完了: {out}", "success")
-                        messagebox.showinfo(t('dialog_complete'), t('status_update_complete', updated))
-
-                self.root.after(0, save)
+                self.presentation.save(out_path)
+                self._log(f"✅ 保存完了: {out_path}", "success")
+                self.root.after(0, lambda: messagebox.showinfo(t('dialog_complete'), t('status_update_complete', updated)))
             except Exception as e:
                 self._log(t('log_error', e), "error")
             finally:
