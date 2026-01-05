@@ -1445,13 +1445,24 @@ class InsightSlidesApp:
                   padx=SPACING["md"], pady=SPACING["sm"],
                   cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
+        # フォルダ一括更新ボタン (Standard+)
+        if self.license_manager.can_batch():
+            tk.Button(self.update_frame, text=t('btn_batch_update'), font=(FONT_FAMILY_SANS, 10),
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._update_batch).grid(row=3, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+        else:
+            ttk.Label(self.update_frame, text=f"{t('btn_batch_update')} (Standard+)",
+                      style='Muted.TLabel').grid(row=3, column=0, sticky='w', pady=(0, SPACING["sm"]))
+
         # Pro機能: 差分プレビュー
         if self.license_manager.is_pro():
             tk.Button(self.update_frame, text=t('btn_diff_preview'), font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
                       activebackground=COLOR_PALETTE["secondary_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._run_preview).grid(row=3, column=0, sticky='ew', pady=(SPACING["sm"], 0))
+                      cursor="hand2", command=self._run_preview).grid(row=4, column=0, sticky='ew', pady=(SPACING["sm"], 0))
 
     def _create_advanced_options(self):
         # スピーカーノート
@@ -2100,6 +2111,78 @@ class InsightSlidesApp:
 
     def _update_json(self):
         self._run_update("json")
+
+    def _update_batch(self):
+        """フォルダ内のExcel/JSONファイルとPPTXを一括更新"""
+        if self.processing:
+            return
+
+        folder = filedialog.askdirectory(title="フォルダを選択 (Excel/JSON + PPTX)")
+        if not folder:
+            return
+
+        def run():
+            try:
+                self._start_progress()
+                self._update_output_safe(f"\n📁 フォルダ一括更新: {folder}\n", clear=True)
+
+                folder_path = Path(folder)
+
+                # Excel/JSONファイルを検索
+                excel_files = list(folder_path.glob("*_抽出.xlsx"))
+                json_files = list(folder_path.glob("*_抽出.json"))
+                data_files = excel_files + json_files
+
+                if not data_files:
+                    return self._log("抽出ファイル (*_抽出.xlsx / *_抽出.json) が見つかりません", "warning")
+
+                self._log(f"発見: {len(data_files)}件のデータファイル")
+                updated_count = 0
+                error_count = 0
+
+                for i, data_file in enumerate(data_files, 1):
+                    if self.cancel_requested:
+                        break
+
+                    # 対応するPPTXファイルを検索
+                    base_name = data_file.stem.replace("_抽出", "")
+                    pptx_path = folder_path / f"{base_name}.pptx"
+
+                    if not pptx_path.exists():
+                        self._log(f"[{i}/{len(data_files)}] {data_file.name}: PPTXなし (スキップ)", "warning")
+                        continue
+
+                    self._log(f"[{i}/{len(data_files)}] {pptx_path.name}")
+
+                    try:
+                        source = "excel" if data_file.suffix == ".xlsx" else "json"
+                        updates = self._load_updates(str(data_file), source)
+
+                        if not updates:
+                            self._log(f"  → 更新データなし", "warning")
+                            continue
+
+                        self._create_backup(str(pptx_path))
+                        updated, skipped, _ = self._update_ppt(str(pptx_path), updates)
+
+                        # 更新済みファイルを保存
+                        out_path = folder_path / f"{base_name}_更新済み.pptx"
+                        self.presentation.save(str(out_path))
+                        self._log(f"  → {updated}件更新, 保存: {out_path.name}")
+                        updated_count += 1
+
+                    except Exception as e:
+                        self._log(f"  → エラー: {e}", "error")
+                        error_count += 1
+
+                self._log(f"\n✅ バッチ更新完了: {updated_count}件成功, {error_count}件エラー", "success")
+
+            except Exception as e:
+                self._log(f"エラー: {e}", "error")
+            finally:
+                self._stop_progress()
+
+        threading.Thread(target=run, daemon=True).start()
 
     def _run_preview(self):
         data_path = filedialog.askopenfilename(title="編集済みファイルを選択", filetypes=[("Excel/TXT", "*.xlsx *.txt")])
