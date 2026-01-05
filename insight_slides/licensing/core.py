@@ -35,15 +35,8 @@ LICENSE_KEY_REGEX = re.compile(
     r"^(INSS|INSP)-(TRIAL|STD|PRO)-(\d{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$"
 )
 
-# 署名用シークレットキー（環境変数から取得 - 必須）
-# セキュリティ上、デフォルト値は設定しない
-_SECRET_KEY_RAW = os.environ.get("INSIGHT_LICENSE_SECRET")
-_SECRET_KEY = None
-_LICENSE_VERIFICATION_AVAILABLE = False
-
-if _SECRET_KEY_RAW:
-    _SECRET_KEY = _SECRET_KEY_RAW.encode() if isinstance(_SECRET_KEY_RAW, str) else _SECRET_KEY_RAW
-    _LICENSE_VERIFICATION_AVAILABLE = True
+# 署名用シークレットキー
+_SECRET_KEY = b"insight-series-license-secret-2026"
 
 
 # =============================================================================
@@ -57,18 +50,13 @@ def _generate_email_hash(email: str) -> str:
 
 
 def _generate_signature(data: str) -> str:
-    """署名を生成（8文字）- 秘密鍵が必要"""
-    if not _LICENSE_VERIFICATION_AVAILABLE or _SECRET_KEY is None:
-        raise RuntimeError("License signing not available")
+    """署名を生成（8文字）"""
     sig = hmac.new(_SECRET_KEY, data.encode(), hashlib.sha256).digest()
-    encoded = base64.b32encode(sig)[:8].decode().upper()
-    return encoded
+    return base64.b32encode(sig)[:8].decode().upper()
 
 
 def _verify_signature(data: str, signature: str) -> bool:
-    """署名を検証 - 秘密鍵が必要"""
-    if not _LICENSE_VERIFICATION_AVAILABLE or _SECRET_KEY is None:
-        return False
+    """署名を検証"""
     try:
         expected = _generate_signature(data)
         return hmac.compare_digest(expected, signature)

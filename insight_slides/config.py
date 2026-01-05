@@ -49,13 +49,14 @@ COLORS = {
 }
 
 # ============== フォント設定 ==============
-FONT_FAMILY = "Yu Gothic UI"
+# Windows標準フォント（クリーンで読みやすい）
+FONT_FAMILY = "Meiryo UI"
 
 FONTS = {
-    "title": (FONT_FAMILY, 18, "bold"),
-    "heading": (FONT_FAMILY, 13, "bold"),
-    "body": (FONT_FAMILY, 11),
-    "small": (FONT_FAMILY, 10),
+    "title": (FONT_FAMILY, 16, "bold"),
+    "heading": (FONT_FAMILY, 12, "bold"),
+    "body": (FONT_FAMILY, 10),
+    "small": (FONT_FAMILY, 9),
     "mono": ("Consolas", 10),
 }
 
