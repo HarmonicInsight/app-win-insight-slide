@@ -211,6 +211,32 @@ LANGUAGES = {
         'license_batch_restricted': 'Batch processing requires a Pro license.',
         'license_json_restricted': 'JSON export requires a Pro license.',
         'license_continue_free': 'Continue as Free',
+        # Status messages
+        'status_slides_items': '{0} slides / {1} items',
+        'status_complete_items': 'Complete: {0} items',
+        'status_batch_complete': 'Batch extract complete: {0} items ({1})',
+        'status_update_complete': 'Update complete: {0} items',
+        'lang_changed': 'Language changed.',
+        # Log messages
+        'log_cancelled': 'Cancelled',
+        'log_cancel_request': 'Cancellation requested...',
+        'log_no_text': 'No text found',
+        'log_error': 'Error: {0}',
+        'log_found_files': 'Found: {0} files',
+        'log_no_pptx_found': 'No PPTX files found',
+        'log_invalid_header': 'Invalid header format',
+        'log_no_update_data': 'No update data',
+        'log_processing': 'Processing...',
+        'dialog_select_folder': 'Select Folder (containing PPTX files)',
+        'dialog_select_folder_update': 'Select Folder (*_extracted{0} + PPTX)',
+        'dialog_select_pptx': 'Select PowerPoint to update',
+        'dialog_processing_exit': 'Processing in progress. Exit anyway?',
+        'dialog_confirm_title': 'Confirm',
+        'result_updated': 'Updated: {0} items\nSkipped: {1} items',
+        'result_replaced': '{0} items replaced',
+        'result_applied': '{0} items applied',
+        'result_csv_saved': 'CSV saved',
+        'result_export_complete': 'Export complete: {0}',
     },
     'ja': {
         'app_subtitle': 'PowerPointテキストを抽出 → 編集 → 反映',
@@ -362,6 +388,32 @@ LANGUAGES = {
         'license_batch_restricted': 'フォルダ一括処理はProライセンスが必要です。',
         'license_json_restricted': 'JSON出力はProライセンスが必要です。',
         'license_continue_free': 'Free版で続行',
+        # Status messages
+        'status_slides_items': '{0}スライド / {1}項目',
+        'status_complete_items': '完了: {0}件',
+        'status_batch_complete': 'バッチ抽出完了: {0}件 ({1})',
+        'status_update_complete': '更新完了: {0}件',
+        'lang_changed': '言語を変更しました。',
+        # Log messages
+        'log_cancelled': 'キャンセルされました',
+        'log_cancel_request': 'キャンセルをリクエスト...',
+        'log_no_text': 'テキストが見つかりませんでした',
+        'log_error': 'エラー: {0}',
+        'log_found_files': '発見: {0}件',
+        'log_no_pptx_found': 'PPTXファイルが見つかりません',
+        'log_invalid_header': 'ヘッダー形式が不正です',
+        'log_no_update_data': '更新データなし',
+        'log_processing': '処理中...',
+        'dialog_select_folder': 'フォルダを選択 (PPTXファイルを含む)',
+        'dialog_select_folder_update': 'フォルダを選択 (*_抽出{0} + PPTX)',
+        'dialog_select_pptx': '更新するPowerPointを選択',
+        'dialog_processing_exit': '処理中です。終了しますか？',
+        'dialog_confirm_title': '確認',
+        'result_updated': '更新: {0}件\nスキップ: {1}件',
+        'result_replaced': '{0} 件を置換しました',
+        'result_applied': '{0} 件を反映しました',
+        'result_csv_saved': 'CSVを保存しました',
+        'result_export_complete': 'エクスポート完了: {0}',
     },
 }
 
@@ -972,7 +1024,7 @@ class EditableGrid(ttk.Frame):
                     count += 1
 
             dialog.destroy()
-            messagebox.showinfo("完了", f"{count} 件を置換しました")
+            messagebox.showinfo(t('dialog_complete'), t('result_replaced', count))
 
         ttk.Button(dialog, text=t('btn_replace'), command=do_replace).grid(row=2, column=1, pady=10, sticky="e")
 
@@ -1194,7 +1246,7 @@ class CompareResultWindow:
 
         if self.on_apply:
             self.on_apply(selected)
-            messagebox.showinfo("完了", f"{len(selected)} 件を反映しました")
+            messagebox.showinfo(t('dialog_complete'), t('result_applied', len(selected)))
             self.window.destroy()
 
     def _export_csv(self):
@@ -1207,7 +1259,7 @@ class CompareResultWindow:
             w.writerow(["スライド", "ID", "状態", "元", "新"])
             for row in self.diff_data:
                 w.writerow([row["slide"], row.get("id", ""), row["status"], row.get("before", ""), row.get("after", "")])
-        messagebox.showinfo("完了", f"CSVを保存しました")
+        messagebox.showinfo(t('dialog_complete'), t('result_csv_saved'))
 
 
 # ============== メインアプリケーション ==============
@@ -1789,7 +1841,7 @@ class InsightSlidesApp:
         """ファイル情報ヘッダーを更新"""
         self.file_name_label.configure(text=filename)
         if item_count > 0:
-            self.file_info_detail.configure(text=f"{slide_count}スライド / {item_count}項目")
+            self.file_info_detail.configure(text=t('status_slides_items', slide_count, item_count))
         else:
             self.file_info_detail.configure(text="")
 
@@ -1855,7 +1907,7 @@ class InsightSlidesApp:
     def _cancel(self):
         if self.processing:
             self.cancel_requested = True
-            self._log("キャンセルをリクエスト...", "warning")
+            self._log(t('log_cancel_request'), "warning")
 
     def _show_log_detail(self):
         """ログ詳細モーダルを表示"""
@@ -1943,8 +1995,10 @@ class InsightSlidesApp:
         if lang != get_language():
             self.config_manager.set('language', lang)
             set_language(lang)
+            self._create_menu()  # メニューを再作成
             self._create_layout()
-            messagebox.showinfo(t('dialog_complete'), "言語を変更しました。")
+            self._setup_window()  # ウィンドウタイトルを更新
+            messagebox.showinfo(t('dialog_complete'), t('lang_changed'))
 
     # === Utility ===
     def clean_text(self, text):
@@ -2075,12 +2129,12 @@ class InsightSlidesApp:
         def run():
             try:
                 self._start_progress()
-                self._update_status_safe("処理中...")
+                self._update_status_safe(t('log_processing'))
                 self._update_output_safe(f"\n📄 処理開始: {os.path.basename(path)}\n", clear=True)
 
                 data, meta = self.extract_from_ppt(path, include_notes)
                 if self.cancel_requested:
-                    return self._log("キャンセルされました", "warning")
+                    return self._log(t('log_cancelled'), "warning")
 
                 if data:
                     # ファイル情報を更新
@@ -2096,13 +2150,13 @@ class InsightSlidesApp:
                     # ファイル保存（デフォルトはExcel）
                     out = os.path.splitext(path)[0] + "_抽出.xlsx"
                     if self.save_to_file(data, out, "excel"):
-                        self._log(f"✅ 抽出完了: {len(data)}件 → {os.path.basename(out)}", "success")
-                        self._update_status_safe(f"完了: {len(data)}件")
+                        self._log(f"✅ {t('status_complete_items', len(data))} → {os.path.basename(out)}", "success")
+                        self._update_status_safe(t('status_complete_items', len(data)))
                 else:
-                    self._log("テキストが見つかりませんでした", "warning")
+                    self._log(t('log_no_text'), "warning")
             except Exception as e:
                 save_error_log(e, "_extract_single")
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2112,7 +2166,7 @@ class InsightSlidesApp:
         """フォルダ一括抽出 (excel/json)"""
         if self.processing:
             return
-        folder = filedialog.askdirectory(title="フォルダを選択 (PPTXファイルを含む)")
+        folder = filedialog.askdirectory(title=t('dialog_select_folder'))
         if not folder:
             return
 
@@ -2126,9 +2180,9 @@ class InsightSlidesApp:
 
                 files = [f for f in Path(folder).glob("*.pptx") if not f.name.startswith("~$")]
                 if not files:
-                    return self._log("PPTXファイルが見つかりません", "warning")
+                    return self._log(t('log_no_pptx_found'), "warning")
 
-                self._log(f"発見: {len(files)}件")
+                self._log(t('log_found_files', len(files)))
                 total = 0
 
                 for i, f in enumerate(files, 1):
@@ -2141,9 +2195,9 @@ class InsightSlidesApp:
                         self.save_to_file(data, out, format)
                         total += len(data)
 
-                self._log(f"✅ バッチ抽出完了: {total}件 ({format.upper()})", "success")
+                self._log(f"✅ {t('status_batch_complete', total, format.upper())}", "success")
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2162,7 +2216,7 @@ class InsightSlidesApp:
                     oi = headers.index("オブジェクトID") if "オブジェクトID" in headers else headers.index("id")
                     ti = headers.index("テキスト内容") if "テキスト内容" in headers else headers.index("text")
                 except:
-                    self._log("ヘッダー形式が不正です", "error")
+                    self._log(t('log_invalid_header'), "error")
                     return {}
                 for row in list(ws.rows)[1:]:
                     try:
@@ -2257,7 +2311,7 @@ class InsightSlidesApp:
 
                 updates = self._load_updates(data_path, source)
                 if not updates:
-                    return self._log("更新データなし", "warning")
+                    return self._log(t('log_no_update_data'), "warning")
 
                 self._log(f"読み込み: {len(updates)}件")
                 updated, skipped, _ = self._update_ppt(ppt_path, updates)
@@ -2271,11 +2325,11 @@ class InsightSlidesApp:
                     if out:
                         self.presentation.save(out)
                         self._log(f"✅ 保存完了: {os.path.basename(out)}", "success")
-                        messagebox.showinfo("完了", f"更新: {updated}件\nスキップ: {skipped}件")
+                        messagebox.showinfo(t('dialog_complete'), t('result_updated', updated, skipped))
 
                 self.root.after(0, save)
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2293,7 +2347,7 @@ class InsightSlidesApp:
             return
 
         ext = ".xlsx" if format == "excel" else ".json"
-        folder = filedialog.askdirectory(title=f"フォルダを選択 (*_抽出{ext} + PPTX)")
+        folder = filedialog.askdirectory(title=t('dialog_select_folder_update', ext))
         if not folder:
             return
 
@@ -2310,7 +2364,7 @@ class InsightSlidesApp:
                 if not data_files:
                     return self._log(f"抽出ファイル (*_抽出{ext}) が見つかりません", "warning")
 
-                self._log(f"発見: {len(data_files)}件のデータファイル")
+                self._log(t('log_found_files', len(data_files)))
                 updated_count = 0
                 error_count = 0
 
@@ -2351,7 +2405,7 @@ class InsightSlidesApp:
                 self._log(f"\n✅ バッチ読込完了 ({format.upper()}): {updated_count}件成功, {error_count}件エラー", "success")
 
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2372,7 +2426,7 @@ class InsightSlidesApp:
                 source = "excel" if data_path.endswith('.xlsx') else "json"
                 updates = self._load_updates(data_path, source)
                 if not updates:
-                    return self._log("更新データなし", "warning")
+                    return self._log(t('log_no_update_data'), "warning")
 
                 _, _, changes = self._update_ppt(ppt_path, updates, preview=True)
                 if changes:
@@ -2382,7 +2436,7 @@ class InsightSlidesApp:
                 else:
                     self._log("変更箇所なし")
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2439,7 +2493,7 @@ class InsightSlidesApp:
                     diff_data, stats, on_apply=self._apply_compare_result
                 ))
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2500,11 +2554,11 @@ class InsightSlidesApp:
                     if out:
                         self.presentation.save(out)
                         self._log(f"✅ 保存完了: {out}", "success")
-                        messagebox.showinfo("完了", f"更新: {updated}件")
+                        messagebox.showinfo(t('dialog_complete'), t('status_update_complete', updated))
 
                 self.root.after(0, save)
             except Exception as e:
-                self._log(f"エラー: {e}", "error")
+                self._log(t('log_error', e), "error")
             finally:
                 self._stop_progress()
 
@@ -2521,7 +2575,7 @@ class InsightSlidesApp:
             return
 
         if self.save_to_file(data, path, "excel"):
-            messagebox.showinfo("完了", f"エクスポート完了: {path}")
+            messagebox.showinfo(t('dialog_complete'), t('result_export_complete', path))
 
     def _export_grid_json(self):
         data = self.grid_view.get_data()
@@ -2534,7 +2588,7 @@ class InsightSlidesApp:
             return
 
         if self.save_to_file(data, path, "json"):
-            messagebox.showinfo("完了", f"エクスポート完了: {path}")
+            messagebox.showinfo(t('dialog_complete'), t('result_export_complete', path))
 
     # === Dialogs ===
     def _check_license_on_startup(self):
@@ -2726,7 +2780,7 @@ class InsightSlidesApp:
 
     def _on_closing(self):
         if self.processing:
-            if not messagebox.askokcancel("確認", "処理中です。終了しますか？"):
+            if not messagebox.askokcancel(t('dialog_confirm_title'), t('dialog_processing_exit')):
                 return
         self.root.destroy()
 
