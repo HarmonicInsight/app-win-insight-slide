@@ -1,29 +1,75 @@
 # -*- coding: utf-8 -*-
 """
-License Core - ライセンス検証・生成
-統一形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
+License Core - ライセンス検証・管理
+新形式: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
+
+メール紐付け認証: ライセンスキーは発行時のメールアドレスでのみ有効
 """
+import hmac
 import hashlib
-import random
-import string
+import base64
 import json
+import os
+import re
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, Tuple
 
 from .types import (
-    LicenseTier, TIERS, FEATURE_LIMITS, FeatureLimits,
-    ValidationResult, PRODUCT_CODE
+    LicenseTier, ProductCode, ErrorCode, TIERS, FEATURE_LIMITS, FeatureLimits,
+    ValidationResult, VALID_PRODUCT_CODES, ERROR_MESSAGES, TRIAL_DAYS
 )
 
 
+# =============================================================================
+# 設定
+# =============================================================================
+
 # 設定ディレクトリ
 CONFIG_DIR = Path.home() / ".insightslides"
-LICENSE_FILE = CONFIG_DIR / "license.key"
+LICENSE_FILE = CONFIG_DIR / "license.dat"
 
-# シークレット (検証用)
-LICENSE_SECRET = "HarmonicInsight2025"
+# ライセンスキー正規表現
+# 形式: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
+LICENSE_KEY_REGEX = re.compile(
+    r"^(INSS|INSP)-(TRIAL|STD|PRO)-(\d{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$"
+)
 
+# 署名用シークレットキー
+_SECRET_KEY = os.environ.get(
+    "INSIGHT_LICENSE_SECRET",
+    b"insight-series-license-secret-2026"
+)
+if isinstance(_SECRET_KEY, str):
+    _SECRET_KEY = _SECRET_KEY.encode()
+
+
+# =============================================================================
+# 署名・ハッシュ
+# =============================================================================
+
+def _generate_email_hash(email: str) -> str:
+    """メールアドレスから4文字のハッシュを生成"""
+    h = hashlib.sha256(email.lower().strip().encode()).digest()
+    return base64.b32encode(h)[:4].decode().upper()
+
+
+def _generate_signature(data: str) -> str:
+    """署名を生成（8文字）"""
+    sig = hmac.new(_SECRET_KEY, data.encode(), hashlib.sha256).digest()
+    encoded = base64.b32encode(sig)[:8].decode().upper()
+    return encoded
+
+
+def _verify_signature(data: str, signature: str) -> bool:
+    """署名を検証"""
+    expected = _generate_signature(data)
+    return hmac.compare_digest(expected, signature)
+
+
+# =============================================================================
+# ライセンスマネージャー
+# =============================================================================
 
 class LicenseManager:
     """ライセンス管理クラス"""
@@ -41,47 +87,81 @@ class LicenseManager:
         if LICENSE_FILE.exists():
             try:
                 with open(LICENSE_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    if data.get('key'):
-                        result = validate_key(data['key'])
-                        if result.valid:
-                            return {
-                                'type': result.tier.value,
-                                'key': data['key'],
-                                'expires': result.expires,
-                            }
+                    encoded = f.read()
+                content = base64.b64decode(encoded).decode()
+                data = json.loads(content)
+
+                # 有効期限チェック
+                if data.get('expires'):
+                    expires = datetime.strptime(data['expires'], "%Y-%m-%d")
+                    expires = expires.replace(hour=23, minute=59, second=59)
+                    if datetime.now() > expires:
+                        return {'type': 'FREE', 'key': '', 'email': '', 'expires': None}
+
+                return {
+                    'type': data.get('plan', 'FREE'),
+                    'key': data.get('key', ''),
+                    'email': data.get('email', ''),
+                    'expires': data.get('expires'),
+                    'product_code': data.get('productCode'),
+                }
             except Exception:
                 pass
-        return {'type': 'FREE', 'key': '', 'expires': None}
+        return {'type': 'FREE', 'key': '', 'email': '', 'expires': None}
 
     def _save_license(self, data: dict):
         """ライセンス情報を保存"""
+        content = json.dumps(data, ensure_ascii=False)
+        encoded = base64.b64encode(content.encode()).decode()
         with open(LICENSE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write(encoded)
 
-    def activate(self, key: str) -> Tuple[bool, str]:
-        """ライセンスをアクティベート"""
+    def activate(self, email: str, key: str) -> Tuple[bool, str]:
+        """
+        ライセンスをアクティベート
+
+        Args:
+            email: メールアドレス（キー発行時と同じもの）
+            key: ライセンスキー
+
+        Returns:
+            (成功フラグ, メッセージ)
+        """
+        if not email:
+            return False, "メールアドレスを入力してください"
         if not key:
             return False, "ライセンスキーを入力してください"
 
-        result = validate_key(key.strip())
+        result = validate_key(email.strip(), key.strip())
         if not result.valid:
             return False, result.error or "無効なライセンスキーです"
 
-        self.license_info = {
-            'type': result.tier.value,
+        # ライセンス情報を保存
+        tier = result.tier
+        save_data = {
+            'email': email.strip().lower(),
             'key': key.strip().upper(),
+            'productCode': result.product_code.value if result.product_code else None,
+            'plan': tier.value,
             'expires': result.expires,
-            'activated': datetime.now().isoformat(),
+            'verifiedAt': datetime.now().isoformat(),
         }
-        self._save_license(self.license_info)
+        self._save_license(save_data)
 
-        tier_info = TIERS[result.tier]
+        self.license_info = {
+            'type': tier.value,
+            'key': key.strip().upper(),
+            'email': email.strip().lower(),
+            'expires': result.expires,
+            'product_code': result.product_code.value if result.product_code else None,
+        }
+
+        tier_info = TIERS[tier]
         return True, f"{tier_info['name_ja']}版がアクティベートされました"
 
     def deactivate(self):
         """ライセンスを解除"""
-        self.license_info = {'type': 'FREE', 'key': '', 'expires': None}
+        self.license_info = {'type': 'FREE', 'key': '', 'email': '', 'expires': None}
         if LICENSE_FILE.exists():
             LICENSE_FILE.unlink()
 
@@ -128,106 +208,169 @@ class LicenseManager:
         except ValueError:
             return expires
 
+    def get_email(self) -> str:
+        """登録メールアドレスを取得"""
+        return self.license_info.get('email', '')
 
-def validate_key(license_key: str) -> ValidationResult:
+
+# =============================================================================
+# ライセンス検証
+# =============================================================================
+
+def validate_key(email: str, license_key: str) -> ValidationResult:
     """
     ライセンスキーを検証
-    形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
+
+    形式: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
+    - PPPP: 製品コード (INSS, INSP)
+    - PLAN: プラン (TRIAL, STD, PRO)
+    - YYMM: 有効期限（年月）
+    - HASH: メールハッシュ（4文字）
+    - SIG1-SIG2: HMAC署名（8文字）
+
+    Args:
+        email: メールアドレス
+        license_key: ライセンスキー
+
+    Returns:
+        ValidationResult
     """
+    if not email:
+        return ValidationResult(valid=False, error="メールアドレスが空です")
     if not license_key:
         return ValidationResult(valid=False, error="キーが空です")
 
+    email = email.strip().lower()
     key = license_key.strip().upper()
-    parts = key.split("-")
 
-    # 形式チェック: INS-SLIDE-TIER-XXXX-XXXX-CC (6パーツ)
-    if len(parts) != 6:
-        return ValidationResult(valid=False, error="キー形式が不正です")
+    # 1. キー形式チェック
+    match = LICENSE_KEY_REGEX.match(key)
+    if not match:
+        return ValidationResult(
+            valid=False,
+            error_code=ErrorCode.E001,
+            error=ERROR_MESSAGES[ErrorCode.E001]
+        )
 
-    prefix, product, tier_str, part1, part2, checksum = parts
+    product_code_str, plan_str, yymm, email_hash, sig1, sig2 = match.groups()
 
-    # プレフィックス確認
-    if prefix != "INS":
-        return ValidationResult(valid=False, error="プレフィックスが不正です")
-
-    # 製品コード確認
-    if product != PRODUCT_CODE:
-        return ValidationResult(valid=False, error="製品コードが不正です")
-
-    # ティア確認
     try:
-        tier = LicenseTier(tier_str)
+        product_code = ProductCode(product_code_str)
+        tier = LicenseTier(plan_str)
     except ValueError:
-        return ValidationResult(valid=False, error="ティアが不正です")
+        return ValidationResult(
+            valid=False,
+            error_code=ErrorCode.E001,
+            error=ERROR_MESSAGES[ErrorCode.E001]
+        )
 
-    # チェックサム検証
-    key_body = f"{prefix}-{product}-{tier_str}-{part1}-{part2}"
-    expected_checksum = _generate_checksum(key_body)
-    if checksum != expected_checksum:
-        return ValidationResult(valid=False, error="チェックサムが不正です")
+    signature = sig1 + sig2
 
-    # 有効期限計算
-    expires = _calculate_expiry(tier)
+    # 2. 署名検証
+    sign_data = f"{product_code_str}-{plan_str}-{yymm}-{email_hash}"
+    if not _verify_signature(sign_data, signature):
+        return ValidationResult(
+            valid=False,
+            error_code=ErrorCode.E002,
+            error=ERROR_MESSAGES[ErrorCode.E002]
+        )
 
-    # 期限チェック（期限付きの場合）
-    if expires:
-        try:
-            exp_date = datetime.strptime(expires, "%Y-%m-%d")
-            if datetime.now() > exp_date:
-                return ValidationResult(valid=False, tier=LicenseTier.FREE, error="ライセンスの期限が切れています")
-        except ValueError:
-            pass
+    # 3. メールハッシュ照合
+    expected_hash = _generate_email_hash(email)
+    if email_hash != expected_hash:
+        return ValidationResult(
+            valid=False,
+            error_code=ErrorCode.E003,
+            error=ERROR_MESSAGES[ErrorCode.E003]
+        )
 
-    return ValidationResult(valid=True, tier=tier, expires=expires)
+    # 4. 有効期限チェック
+    try:
+        year = 2000 + int(yymm[:2])
+        month = int(yymm[2:])
+        # 月末日を有効期限とする
+        if month == 12:
+            expires_dt = datetime(year + 1, 1, 1) - timedelta(days=1)
+        else:
+            expires_dt = datetime(year, month + 1, 1) - timedelta(days=1)
+        expires_dt = expires_dt.replace(hour=23, minute=59, second=59)
+        expires = expires_dt.strftime("%Y-%m-%d")
+    except ValueError:
+        return ValidationResult(
+            valid=False,
+            error_code=ErrorCode.E001,
+            error=ERROR_MESSAGES[ErrorCode.E001]
+        )
+
+    if datetime.now() > expires_dt:
+        return ValidationResult(
+            valid=False,
+            tier=tier,
+            product_code=product_code,
+            expires=expires,
+            error_code=ErrorCode.E004,
+            error=ERROR_MESSAGES[ErrorCode.E004]
+        )
+
+    # 5. 製品コードチェック
+    if product_code not in VALID_PRODUCT_CODES:
+        return ValidationResult(
+            valid=False,
+            tier=tier,
+            product_code=product_code,
+            expires=expires,
+            error_code=ErrorCode.E005,
+            error=ERROR_MESSAGES[ErrorCode.E005]
+        )
+
+    return ValidationResult(
+        valid=True,
+        tier=tier,
+        product_code=product_code,
+        expires=expires
+    )
 
 
-def generate_key(tier: LicenseTier) -> str:
+# =============================================================================
+# ライセンスキー生成（開発者用）
+# =============================================================================
+
+def generate_key(product_code: ProductCode, tier: LicenseTier, email: str,
+                 expires: Optional[datetime] = None) -> str:
     """
     ライセンスキーを生成
-    形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
+
+    Args:
+        product_code: 製品コード
+        tier: プラン
+        email: メールアドレス
+        expires: 有効期限（省略時は1年後）
+
+    Returns:
+        ライセンスキー (PPPP-PLAN-YYMM-HASH-SIG1-SIG2形式)
     """
-    chars = string.ascii_uppercase + string.digits
-    part1 = ''.join(random.choices(chars, k=4))
-    part2 = ''.join(random.choices(chars, k=4))
+    if expires is None:
+        if tier == LicenseTier.TRIAL:
+            expires = datetime.now() + timedelta(days=TRIAL_DAYS)
+        else:
+            expires = datetime.now() + timedelta(days=365)
 
-    key_body = f"INS-{PRODUCT_CODE}-{tier.value}-{part1}-{part2}"
-    checksum = _generate_checksum(key_body)
+    # YYMM形式
+    yymm = expires.strftime("%y%m")
 
-    return f"{key_body}-{checksum}"
+    # メールハッシュ
+    email_hash = _generate_email_hash(email)
+
+    # 署名データ
+    sign_data = f"{product_code.value}-{tier.value}-{yymm}-{email_hash}"
+
+    # 署名生成
+    signature = _generate_signature(sign_data)
+    sig1, sig2 = signature[:4], signature[4:]
+
+    return f"{product_code.value}-{tier.value}-{yymm}-{email_hash}-{sig1}-{sig2}"
 
 
-def generate_trial_key() -> str:
+def generate_trial_key(email: str) -> str:
     """トライアルキーを生成（14日間）"""
-    return generate_key(LicenseTier.TRIAL)
-
-
-def _generate_checksum(key_body: str) -> str:
-    """チェックサムを生成"""
-    return hashlib.sha256(f"{key_body}{LICENSE_SECRET}".encode()).hexdigest()[:2].upper()
-
-
-def _calculate_expiry(tier: LicenseTier) -> Optional[str]:
-    """ティアから有効期限を計算"""
-    tier_config = TIERS[tier]
-
-    # TRIAL: 14日
-    if tier_config.get("duration_days"):
-        days = tier_config["duration_days"]
-        expiry = datetime.now() + timedelta(days=days)
-        return expiry.strftime("%Y-%m-%d")
-
-    # STD/PRO: 12ヶ月
-    if tier_config.get("duration_months"):
-        months = tier_config["duration_months"]
-        now = datetime.now()
-        new_month = now.month + months
-        new_year = now.year + (new_month - 1) // 12
-        new_month = (new_month - 1) % 12 + 1
-        try:
-            expiry = datetime(new_year, new_month, now.day)
-        except ValueError:
-            expiry = datetime(new_year, new_month + 1, 1) - timedelta(days=1)
-        return expiry.strftime("%Y-%m-%d")
-
-    # FREE/ENT: 永久（期限なし）
-    return None
+    return generate_key(ProductCode.INSS, LicenseTier.TRIAL, email)

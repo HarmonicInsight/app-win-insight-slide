@@ -842,17 +842,32 @@ class LicenseDialog:
 
         ttk.Label(info_frame, text=" / ".join(features_text), font=FONTS["small"], foreground=COLORS["text_muted"]).pack(anchor="w", pady=(5, 0))
 
-        # ライセンスキー入力
-        key_frame = ttk.LabelFrame(main_frame, text="ライセンスキー", padding=15)
+        # ライセンス認証入力
+        key_frame = ttk.LabelFrame(main_frame, text="ライセンス認証", padding=15)
         key_frame.pack(fill="x", pady=(0, 15))
 
+        # メールアドレス入力
+        ttk.Label(key_frame, text="メールアドレス:", font=FONTS["small"]).pack(anchor="w")
+        self.email_entry = ttk.Entry(key_frame, width=50, font=FONTS["body"])
+        self.email_entry.pack(fill="x", pady=(2, 8))
+
+        # 現在のメールがあれば表示
+        current_email = self.license_manager.license_info.get('email', '')
+        if current_email:
+            self.email_entry.insert(0, current_email)
+
+        # ライセンスキー入力
+        ttk.Label(key_frame, text="ライセンスキー:", font=FONTS["small"]).pack(anchor="w")
         self.key_entry = ttk.Entry(key_frame, width=50, font=FONTS["body"])
-        self.key_entry.pack(fill="x", pady=(0, 10))
+        self.key_entry.pack(fill="x", pady=(2, 10))
 
         # 現在のキーがあれば表示
         current_key = self.license_manager.license_info.get('key', '')
         if current_key:
             self.key_entry.insert(0, current_key)
+
+        # ヒント
+        ttk.Label(key_frame, text="形式: INSS-STD-YYMM-XXXX-XXXX-XXXX", font=FONTS["small"], foreground=COLORS["text_muted"]).pack(anchor="w")
 
         btn_frame = ttk.Frame(key_frame)
         btn_frame.pack(fill="x")
@@ -920,8 +935,9 @@ class LicenseDialog:
 
     def _activate(self):
         """ライセンスをアクティベート"""
+        email = self.email_entry.get().strip()
         key = self.key_entry.get().strip()
-        success, message = self.license_manager.activate(key)
+        success, message = self.license_manager.activate(email, key)
 
         if success:
             messagebox.showinfo("成功", message)
