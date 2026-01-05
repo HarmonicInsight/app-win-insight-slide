@@ -29,23 +29,109 @@ import string
 import webbrowser
 import traceback
 from datetime import datetime, timedelta
+from typing import Dict, Tuple, List, Optional
 
-# insight-common ライセンスモジュールをインポート
-import importlib.util
-_license_module_path = os.path.join(os.path.dirname(__file__), 'insight-common', 'license', 'python', '__init__.py')
-_spec = importlib.util.spec_from_file_location("insight_license", _license_module_path)
-_license_module = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_license_module)
-ProductCode = _license_module.ProductCode
-InsightLicenseTier = _license_module.LicenseTier
-LicenseInfo = _license_module.LicenseInfo
-LicenseValidator = _license_module.LicenseValidator
-get_feature_limits = _license_module.get_feature_limits
-TIER_NAMES = _license_module.TIER_NAMES
-INSIGHT_TIERS = _license_module.TIERS
+# ライセンス検証（ローカル実装）
+import hmac
+import base64
+from enum import Enum
+from dataclasses import dataclass
+
+class ProductCode(Enum):
+    INSS = "INSS"  # InsightSlide Standard
+    INSP = "INSP"  # InsightSlide Pro
+
+class InsightLicenseTier(Enum):
+    TRIAL = "TRIAL"
+    STD = "STD"
+    PRO = "PRO"
+    ENT = "ENT"
+
+@dataclass
+class LicenseInfo:
+    is_valid: bool
+    tier: Optional[InsightLicenseTier] = None
+    product: Optional[ProductCode] = None
+    expires: Optional[datetime] = None
+    error: Optional[str] = None
+
+# 署名用シークレットキー
+_LICENSE_SECRET = os.environ.get("INSIGHT_LICENSE_SECRET", b"insight-series-license-secret-2026")
+if isinstance(_LICENSE_SECRET, str):
+    _LICENSE_SECRET = _LICENSE_SECRET.encode()
+
+# ライセンスキー正規表現: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
+import re as _re
+_LICENSE_KEY_REGEX = _re.compile(r"^(INSS|INSP)-(TRIAL|STD|PRO)-(\d{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$")
+
+def _generate_signature(data: str) -> str:
+    sig = hmac.new(_LICENSE_SECRET, data.encode(), hashlib.sha256).digest()
+    return base64.b32encode(sig)[:8].decode().upper()
+
+def _verify_signature(data: str, signature: str) -> bool:
+    expected = _generate_signature(data)
+    return hmac.compare_digest(expected, signature)
+
+class LicenseValidator:
+    def validate(self, key: str, expires_at=None) -> LicenseInfo:
+        if not key:
+            return LicenseInfo(is_valid=False, error="キーが空です")
+
+        key = key.strip().upper()
+        match = _LICENSE_KEY_REGEX.match(key)
+        if not match:
+            return LicenseInfo(is_valid=False, error="キー形式が不正です")
+
+        product_str, tier_str, yymm, email_hash, sig1, sig2 = match.groups()
+
+        try:
+            product = ProductCode(product_str)
+            tier = InsightLicenseTier(tier_str)
+        except ValueError:
+            return LicenseInfo(is_valid=False, error="無効な製品/プラン")
+
+        # 署名検証
+        signature = sig1 + sig2
+        sign_data = f"{product_str}-{tier_str}-{yymm}-{email_hash}"
+        if not _verify_signature(sign_data, signature):
+            return LicenseInfo(is_valid=False, error="署名が無効です")
+
+        # 有効期限
+        try:
+            year = 2000 + int(yymm[:2])
+            month = int(yymm[2:])
+            if month == 12:
+                expires = datetime(year + 1, 1, 1) - timedelta(days=1)
+            else:
+                expires = datetime(year, month + 1, 1) - timedelta(days=1)
+        except ValueError:
+            return LicenseInfo(is_valid=False, error="有効期限が不正です")
+
+        if datetime.now() > expires:
+            return LicenseInfo(is_valid=False, tier=tier, error="期限切れです")
+
+        return LicenseInfo(is_valid=True, tier=tier, product=product, expires=expires)
+
+    def is_product_covered(self, info: LicenseInfo, product_code: str) -> bool:
+        if not info or not info.product:
+            return False
+        return info.product.value.startswith(product_code[:3])
+
+TIER_NAMES = {
+    InsightLicenseTier.TRIAL: "トライアル",
+    InsightLicenseTier.STD: "Standard",
+    InsightLicenseTier.PRO: "Pro",
+    InsightLicenseTier.ENT: "Enterprise",
+}
+
+INSIGHT_TIERS = {
+    InsightLicenseTier.TRIAL: {"duration_days": 14},
+    InsightLicenseTier.STD: {"duration_months": 12},
+    InsightLicenseTier.PRO: {"duration_months": 12},
+    InsightLicenseTier.ENT: {},
+}
 import threading
 from pathlib import Path
-from typing import Dict, Tuple, List, Optional
 import shutil
 
 # ============== App Info ==============
@@ -499,28 +585,14 @@ class LicenseManager:
 
     @staticmethod
     def _compute_email_hash(email: str) -> str:
-        """メールアドレスからハッシュを生成（Base36エンコード、4文字）
+        """メールアドレスからハッシュを生成（Base32エンコード、4文字）
 
-        insight-commonのチェックサム計算と同様のBase36形式を使用
+        insight-commonと同じBase32形式を使用
         """
+        import base64
         normalized = email.strip().lower()
         hash_bytes = hashlib.sha256(normalized.encode('utf-8')).digest()
-
-        # 最初の4バイトを整数に変換
-        hash_int = int.from_bytes(hash_bytes[:4], 'big')
-
-        # Base36エンコード（insight-commonと同じ文字セット）
-        chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-
-        result = ""
-        while hash_int:
-            result = chars[hash_int % 36] + result
-            hash_int //= 36
-
-        # 4文字に正規化（0埋めまたは末尾4文字）
-        if len(result) < 4:
-            return result.zfill(4)
-        return result[-4:]
+        return base64.b32encode(hash_bytes)[:4].decode().upper()
 
     @staticmethod
     def _extract_email_hash_from_key(key: str) -> Optional[str]:
@@ -2714,7 +2786,7 @@ class InsightSlidesApp:
         ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=10)
 
         # フォーマット説明
-        ttk.Label(frame, text="形式: INS-SLIDE-{TIER}-{EMAIL_HASH}-XXXX-CC", font=FONTS["small"],
+        ttk.Label(frame, text="形式: INSS-STD-YYMM-XXXX-XXXX-XXXX", font=FONTS["small"],
                   foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 5))
         ttk.Label(frame, text="※メールアドレスとキーの組み合わせで認証されます", font=FONTS["small"],
                   foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 10))
