@@ -97,8 +97,8 @@ LANGUAGES = {
         'btn_export_to_excel': 'Export to Excel',
         'btn_export_to_json': 'Export to JSON',
         'panel_batch': 'Folder Batch',
-        'btn_batch_extract': 'Batch Extract',
-        'btn_batch_update': 'Batch Update',
+        'btn_batch_extract': 'Folder → Excel',
+        'btn_batch_update': 'Excel → Folder',
         'btn_batch_export_excel': 'Export to Folder (Excel)',
         'btn_batch_export_json': 'Export to Folder (JSON)',
         'btn_batch_import_excel': 'Import from Folder (Excel)',
@@ -177,8 +177,8 @@ LANGUAGES = {
         'guide_step1': 'Select a PPTX file from the left panel',
         'guide_step2': 'Text will be displayed in a list',
         'guide_step3': 'Double-click a cell to edit',
-        'guide_step4': 'Click "Apply" to update PPTX',
-        'btn_apply': 'Apply',
+        'guide_step4': 'Click "Apply to PPTX" to save changes',
+        'btn_apply': 'Apply to PPTX',
         'btn_export_excel': 'Excel Export',
         'btn_export_json': 'JSON Export',
         'filter_label': 'Filter:',
@@ -284,8 +284,8 @@ LANGUAGES = {
         'btn_export_to_excel': 'Excel出力',
         'btn_export_to_json': 'JSON出力',
         'panel_batch': 'フォルダ一括',
-        'btn_batch_extract': '一括抽出',
-        'btn_batch_update': '一括更新',
+        'btn_batch_extract': 'フォルダ→Excel',
+        'btn_batch_update': 'Excel→フォルダ',
         'btn_batch_export_excel': 'フォルダに出力 (Excel)',
         'btn_batch_export_json': 'フォルダに出力 (JSON)',
         'btn_batch_import_excel': 'フォルダから読込 (Excel)',
@@ -364,8 +364,8 @@ LANGUAGES = {
         'guide_step1': '左のパネルでPPTXファイルを選択',
         'guide_step2': 'テキストが一覧で表示されます',
         'guide_step3': 'セルをダブルクリックして編集',
-        'guide_step4': '「更新を適用」でPPTXに反映',
-        'btn_apply': '更新を適用',
+        'guide_step4': '「PPTXに反映」で変更を保存',
+        'btn_apply': 'PPTXに反映',
         'btn_export_excel': 'Excelエクスポート',
         'btn_export_json': 'JSONエクスポート',
         'filter_label': 'フィルタ:',
@@ -1490,10 +1490,10 @@ class InsightSlidesApp:
                  fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='right')
 
     def _create_controls(self, parent):
-        """左サイドバー - 3セクション構成（入力/出力/フォルダ一括）"""
+        """左サイドバー - 2セクション構成（入力/フォルダ一括）"""
         frame = ttk.Frame(parent, style='Sidebar.TFrame')
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
-        frame.grid_rowconfigure(4, weight=1)
+        frame.grid_rowconfigure(3, weight=1)
 
         btn_font = (FONT_FAMILY_SANS, 10)
         can_json = self.license_manager.can_json()
@@ -1530,47 +1530,9 @@ class InsightSlidesApp:
             tk.Label(input_card, text=f"{t('btn_load_json')} (Pro)", font=btn_font,
                      fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=2, column=0, sticky='w')
 
-        # ============ 出力（1ファイル）セクション ============
-        output_card = ttk.LabelFrame(frame, text=t('panel_output_file'), padding=SPACING["md"])
-        output_card.grid(row=1, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        output_card.grid_columnconfigure(0, weight=1)
-
-        # スライド制限警告
-        limit = self.license_manager.get_update_limit()
-        if limit:
-            warn_frame = tk.Frame(output_card, bg=COLOR_PALETTE["warning_light"], padx=SPACING["sm"], pady=SPACING["xs"])
-            warn_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-            tk.Label(warn_frame, text=t('msg_update_limit', limit), font=FONTS["small"],
-                    fg=COLOR_PALETTE["warning"], bg=COLOR_PALETTE["warning_light"]).pack(anchor='w')
-
-        # PPTXに反映ボタン（プライマリ）
-        tk.Button(output_card, text=t('btn_apply_pptx'), font=btn_font,
-                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
-                  activebackground="#047857",
-                  padx=SPACING["lg"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._apply_grid_to_pptx).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
-
-        # Excel出力ボタン
-        tk.Button(output_card, text=t('btn_export_to_excel'), font=btn_font,
-                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                  activebackground=COLOR_PALETTE["secondary_hover"],
-                  padx=SPACING["md"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._export_grid_excel).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["xs"]))
-
-        # JSON出力ボタン（Pro）
-        if can_json:
-            tk.Button(output_card, text=t('btn_export_to_json'), font=btn_font,
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
-                      padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._export_grid_json).grid(row=3, column=0, sticky='ew')
-        else:
-            tk.Label(output_card, text=f"{t('btn_export_to_json')} (Pro)", font=btn_font,
-                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=3, column=0, sticky='w')
-
         # ============ フォルダ一括セクション ============
         batch_card = ttk.LabelFrame(frame, text=t('panel_batch'), padding=SPACING["md"])
-        batch_card.grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        batch_card.grid(row=1, column=0, sticky='ew', pady=(0, SPACING["md"]))
         batch_card.grid_columnconfigure(0, weight=1)
 
         if can_batch:
@@ -1606,11 +1568,11 @@ class InsightSlidesApp:
                   relief="flat", padx=SPACING["md"], pady=SPACING["sm"],
                   cursor="hand2" if can_compare else "arrow",
                   command=self._show_compare_dialog if can_compare else None,
-                  state='normal' if can_compare else 'disabled').grid(row=3, column=0, sticky='ew', pady=(0, SPACING["md"]))
+                  state='normal' if can_compare else 'disabled').grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
         # ステータス＆ミニログ
         status_frame = ttk.Frame(frame, style='Main.TFrame')
-        status_frame.grid(row=4, column=0, sticky='sew')
+        status_frame.grid(row=3, column=0, sticky='sew')
 
         # プログレスバー（処理中のみ表示）
         self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
