@@ -31,6 +31,13 @@ import traceback
 from datetime import datetime, timedelta
 from typing import Dict, Tuple, List, Optional
 
+# グリッド表示（複数行テキスト対応）
+try:
+    from tksheet import Sheet
+    TKSHEET_AVAILABLE = True
+except ImportError:
+    TKSHEET_AVAILABLE = False
+
 # ライセンス検証（ローカル実装）
 import hmac
 import base64
@@ -1025,7 +1032,7 @@ class EditableGrid(ttk.Frame):
         self._all_data: List[Dict] = []
         self._filter_text = ""
         self._font_size = 10  # デフォルトフォントサイズ
-        self._row_height = 22  # デフォルト行の高さ
+        self._row_height = 60  # デフォルト行の高さ（複数行表示対応）
 
         self._create_widgets()
         self._setup_bindings()
@@ -1068,45 +1075,98 @@ class EditableGrid(ttk.Frame):
         # 行の高さ変更
         ttk.Label(toolbar, text=" 行高:").pack(side="left")
         ttk.Button(toolbar, text="-", width=2, command=self._decrease_row_height).pack(side="left")
-        self.row_height_label = ttk.Label(toolbar, text="22")
+        self.row_height_label = ttk.Label(toolbar, text="60")
         self.row_height_label.pack(side="left", padx=2)
         ttk.Button(toolbar, text="+", width=2, command=self._increase_row_height).pack(side="left")
 
-        # Treeview
-        tree_frame = ttk.Frame(self)
-        tree_frame.pack(fill="both", expand=True)
+        # tksheet（複数行対応グリッド）
+        sheet_frame = ttk.Frame(self)
+        sheet_frame.pack(fill="both", expand=True)
 
-        columns = ("slide", "id", "type", "text")
-        self.tree = ttk.Treeview(tree_frame, columns=columns, show="headings")
+        self._row_height = 60  # 複数行表示のためデフォルト高さを増やす
 
-        self.tree.heading("slide", text=t('header_slide'))
-        self.tree.heading("id", text=t('header_id'))
-        self.tree.heading("type", text=t('header_type'))
-        self.tree.heading("text", text=t('header_text'))
+        if TKSHEET_AVAILABLE:
+            self.sheet = Sheet(
+                sheet_frame,
+                headers=[t('header_slide'), t('header_id'), t('header_type'), t('header_text')],
+                show_x_scrollbar=True,
+                show_y_scrollbar=True,
+                font=(FONT_FAMILY_SANS, self._font_size),
+                header_font=(FONT_FAMILY_SANS, self._font_size, "bold"),
+                default_row_height=self._row_height,
+                auto_resize_row_index=True,
+            )
+            self.sheet.pack(fill="both", expand=True)
 
-        self.tree.column("slide", width=80, minwidth=60, anchor="center", stretch=False)
-        self.tree.column("id", width=100, minwidth=80, stretch=False)
-        self.tree.column("type", width=80, minwidth=60, stretch=False)
-        self.tree.column("text", width=800, minwidth=300, stretch=True)
+            # 列幅設定
+            self.sheet.column_width(0, 80)   # slide
+            self.sheet.column_width(1, 100)  # id
+            self.sheet.column_width(2, 80)   # type
+            self.sheet.column_width(3, 800)  # text
 
-        vsb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
-        hsb = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+            # 編集は4列目（text）のみ許可
+            self.sheet.enable_bindings(
+                "single_select",
+                "row_select",
+                "column_width_resize",
+                "arrowkeys",
+                "copy",
+                "paste",
+                "edit_cell",
+                "delete",
+                "undo",
+            )
+            # 最初の3列は読み取り専用
+            self.sheet.readonly_columns([0, 1, 2])
 
-        self.tree.grid(row=0, column=0, sticky="nsew")
-        vsb.grid(row=0, column=1, sticky="ns")
-        hsb.grid(row=1, column=0, sticky="ew")
+            # 修正セルの背景色
+            self._modified_cells = set()  # 変更されたセルを追跡
+        else:
+            # フォールバック: Treeview
+            columns = ("slide", "id", "type", "text")
+            self.tree = ttk.Treeview(sheet_frame, columns=columns, show="headings")
 
-        tree_frame.grid_rowconfigure(0, weight=1)
-        tree_frame.grid_columnconfigure(0, weight=1)
+            self.tree.heading("slide", text=t('header_slide'))
+            self.tree.heading("id", text=t('header_id'))
+            self.tree.heading("type", text=t('header_type'))
+            self.tree.heading("text", text=t('header_text'))
 
-        self.tree.tag_configure("modified", background=COLOR_PALETTE["diff_changed"])
-        self.tree.tag_configure("filtered", background=COLOR_PALETTE["diff_added"])
+            self.tree.column("slide", width=80, minwidth=60, anchor="center", stretch=False)
+            self.tree.column("id", width=100, minwidth=80, stretch=False)
+            self.tree.column("type", width=80, minwidth=60, stretch=False)
+            self.tree.column("text", width=800, minwidth=300, stretch=True)
+
+            vsb = ttk.Scrollbar(sheet_frame, orient="vertical", command=self.tree.yview)
+            hsb = ttk.Scrollbar(sheet_frame, orient="horizontal", command=self.tree.xview)
+            self.tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+
+            self.tree.grid(row=0, column=0, sticky="nsew")
+            vsb.grid(row=0, column=1, sticky="ns")
+            hsb.grid(row=1, column=0, sticky="ew")
+
+            sheet_frame.grid_rowconfigure(0, weight=1)
+            sheet_frame.grid_columnconfigure(0, weight=1)
+
+            self.tree.tag_configure("modified", background=COLOR_PALETTE["diff_changed"])
+            self.tree.tag_configure("filtered", background=COLOR_PALETTE["diff_added"])
+            self.sheet = None
 
     def _setup_bindings(self):
-        self.tree.bind("<Double-1>", self._on_double_click)
-        self.tree.bind("<Control-z>", lambda e: self._do_undo())
-        self.tree.bind("<Control-y>", lambda e: self._do_redo())
+        if TKSHEET_AVAILABLE and self.sheet:
+            # tksheetのイベントバインド
+            self.sheet.bind("<<SheetModified>>", self._on_sheet_modified)
+        else:
+            # Treeviewのイベントバインド
+            self.tree.bind("<Double-1>", self._on_double_click)
+            self.tree.bind("<Control-z>", lambda e: self._do_undo())
+            self.tree.bind("<Control-y>", lambda e: self._do_redo())
+
+    def _on_sheet_modified(self, event):
+        """tksheetのセル編集イベント処理"""
+        if not self.sheet:
+            return
+        # 変更されたセルをハイライト
+        # TODO: 変更追跡の実装
 
     def _on_double_click(self, event):
         region = self.tree.identify_region(event.x, event.y)
@@ -1196,20 +1256,37 @@ class EditableGrid(ttk.Frame):
         self._refresh_display()
 
     def _refresh_display(self):
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        if TKSHEET_AVAILABLE and self.sheet:
+            # tksheetの場合
+            self.sheet.set_sheet_data([])  # クリア
+            rows = []
+            for row in self._all_data:
+                if self._filter_text:
+                    if self._filter_text not in str(row.get("text", "")).lower():
+                        continue
+                rows.append([
+                    str(row.get("slide", "")),
+                    str(row.get("id", "")),
+                    str(row.get("type", "")),
+                    str(row.get("text", ""))
+                ])
+            self.sheet.set_sheet_data(rows)
+        else:
+            # Treeviewの場合
+            for item in self.tree.get_children():
+                self.tree.delete(item)
 
-        for row in self._all_data:
-            if self._filter_text:
-                if self._filter_text not in str(row.get("text", "")).lower():
-                    continue
+            for row in self._all_data:
+                if self._filter_text:
+                    if self._filter_text not in str(row.get("text", "")).lower():
+                        continue
 
-            self.tree.insert("", "end", values=(
-                row.get("slide", ""),
-                row.get("id", ""),
-                row.get("type", ""),
-                row.get("text", "")
-            ))
+                self.tree.insert("", "end", values=(
+                    row.get("slide", ""),
+                    row.get("id", ""),
+                    row.get("type", ""),
+                    row.get("text", "")
+                ))
 
     def _show_replace_dialog(self):
         dialog = tk.Toplevel(self)
@@ -1233,13 +1310,30 @@ class EditableGrid(ttk.Frame):
                 return
 
             count = 0
-            for item in self.tree.get_children():
-                old_text = self.tree.set(item, "text")
-                if find_text in old_text:
-                    new_text = old_text.replace(find_text, replace_text)
-                    self.tree.set(item, "text", new_text)
-                    self.tree.item(item, tags=("modified",))
-                    count += 1
+            if TKSHEET_AVAILABLE and self.sheet:
+                # tksheetの場合
+                data = self.sheet.get_sheet_data()
+                for row_idx, row in enumerate(data):
+                    if len(row) > 3:
+                        old_text = row[3]
+                        if find_text in old_text:
+                            new_text = old_text.replace(find_text, replace_text)
+                            self.sheet.set_cell_data(row_idx, 3, new_text)
+                            # 変更セルをハイライト
+                            self.sheet.highlight_cells(row_idx, 3, bg=COLOR_PALETTE["diff_changed"])
+                            count += 1
+                            # _all_dataも更新
+                            if row_idx < len(self._all_data):
+                                self._all_data[row_idx]["text"] = new_text
+            else:
+                # Treeviewの場合
+                for item in self.tree.get_children():
+                    old_text = self.tree.set(item, "text")
+                    if find_text in old_text:
+                        new_text = old_text.replace(find_text, replace_text)
+                        self.tree.set(item, "text", new_text)
+                        self.tree.item(item, tags=("modified",))
+                        count += 1
 
             dialog.destroy()
             messagebox.showinfo(t('dialog_complete'), t('result_replaced', count))
@@ -1253,19 +1347,35 @@ class EditableGrid(ttk.Frame):
 
     def clear(self):
         self._all_data = []
-        for item in self.tree.get_children():
-            self.tree.delete(item)
+        if TKSHEET_AVAILABLE and self.sheet:
+            self.sheet.set_sheet_data([])
+        else:
+            for item in self.tree.get_children():
+                self.tree.delete(item)
         self.undo_manager.clear()
 
     def get_data(self) -> List[Dict]:
         result = []
-        for item in self.tree.get_children():
-            result.append({
-                "slide": self.tree.set(item, "slide"),
-                "id": self.tree.set(item, "id"),
-                "type": self.tree.set(item, "type"),
-                "text": self.tree.set(item, "text"),
-            })
+        if TKSHEET_AVAILABLE and self.sheet:
+            # tksheetの場合: 現在のグリッドデータを取得
+            data = self.sheet.get_sheet_data()
+            for row in data:
+                if len(row) >= 4:
+                    result.append({
+                        "slide": row[0],
+                        "id": row[1],
+                        "type": row[2],
+                        "text": row[3],
+                    })
+        else:
+            # Treeviewの場合
+            for item in self.tree.get_children():
+                result.append({
+                    "slide": self.tree.set(item, "slide"),
+                    "id": self.tree.set(item, "id"),
+                    "type": self.tree.set(item, "type"),
+                    "text": self.tree.set(item, "text"),
+                })
         return result
 
     def _increase_font(self):
@@ -1293,12 +1403,20 @@ class EditableGrid(ttk.Frame):
             self._update_style()
 
     def _update_style(self):
-        """Treeviewのスタイルを更新"""
-        style = ttk.Style()
+        """グリッドのスタイルを更新"""
         font = (FONT_FAMILY_SANS, self._font_size)
-        # Treeviewのフォント・行高さ設定
-        style.configure("Treeview", font=font, rowheight=self._row_height)
-        style.configure("Treeview.Heading", font=(FONT_FAMILY_SANS, self._font_size, "bold"))
+
+        if TKSHEET_AVAILABLE and self.sheet:
+            # tksheetのスタイル更新
+            self.sheet.font(font)
+            self.sheet.header_font((FONT_FAMILY_SANS, self._font_size, "bold"))
+            self.sheet.set_all_row_heights(self._row_height)
+        else:
+            # Treeviewのスタイル更新
+            style = ttk.Style()
+            style.configure("Treeview", font=font, rowheight=self._row_height)
+            style.configure("Treeview.Heading", font=(FONT_FAMILY_SANS, self._font_size, "bold"))
+
         # ラベル更新
         if hasattr(self, 'font_size_label'):
             self.font_size_label.configure(text=str(self._font_size))
