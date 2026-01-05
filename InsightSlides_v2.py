@@ -144,6 +144,7 @@ LANGUAGES = {
         'license_activated': '{0} has been activated',
         'license_deactivated': 'License deactivated',
         'license_invalid': 'Invalid license key',
+        'license_email_mismatch': 'Email address does not match the license key',
         'license_enter_prompt': 'Please enter a license key',
         'upgrade_title': 'Upgrade',
         'dialog_confirm': 'Confirm',
@@ -331,6 +332,7 @@ LANGUAGES = {
         'license_activated': '{0}版がアクティベートされました',
         'license_deactivated': 'ライセンスを解除しました',
         'license_invalid': '無効なライセンスキーです',
+        'license_email_mismatch': 'メールアドレスがライセンスキーと一致しません',
         'license_enter_prompt': 'ライセンスキーを入力してください',
         'upgrade_title': 'アップグレード',
         'dialog_confirm': '確認',
@@ -467,7 +469,6 @@ EXPIRY_WARNING_DAYS = 30  # 期限切れ警告の日数
 
 # ローカルティア定義（FREE追加）
 class LicenseTier:
-    FREE = "FREE"
     TRIAL = "TRIAL"
     STD = "STD"
     PRO = "PRO"
@@ -476,16 +477,18 @@ class LicenseTier:
 # ティア別設定（InsightSlide固有）
 # json: 1ファイルJSON入出力, batch: フォルダ一括処理, compare: 2ファイル比較
 TIERS = {
-    LicenseTier.FREE: {'name': 'Free', 'name_ja': '無料版', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'json': False, 'compare': False},
     LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': False, 'json': False, 'compare': True},
     LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
     LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
 }
 
+# 未認証時のデフォルト設定（機能制限あり、認証必須）
+TIER_NOT_ACTIVATED = {'name': 'Not Activated', 'name_ja': '未認証', 'badge': '-', 'update_limit': 0, 'batch': False, 'json': False, 'compare': False}
+
 
 class LicenseManager:
-    """insight-common 統合ライセンスマネージャー"""
+    """insight-common 統合ライセンスマネージャー（メールハッシュ検証付き）"""
 
     def __init__(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -494,16 +497,43 @@ class LicenseManager:
         self.insight_info: Optional[LicenseInfo] = None
         self._load_license()
 
+    @staticmethod
+    def _compute_email_hash(email: str) -> str:
+        """メールアドレスからハッシュを生成（SHA256の先頭4文字、大文字）"""
+        normalized = email.strip().lower()
+        hash_bytes = hashlib.sha256(normalized.encode('utf-8')).hexdigest()
+        return hash_bytes[:4].upper()
+
+    @staticmethod
+    def _extract_email_hash_from_key(key: str) -> Optional[str]:
+        """ライセンスキーからメールハッシュ部分を抽出
+
+        形式: INS-PRODUCT-TIER-[HASH]-XXXX-CC
+        ハッシュは4番目のセグメント（0-indexed: 3）
+        """
+        parts = key.strip().upper().split('-')
+        if len(parts) >= 4:
+            return parts[3]  # 4番目のセグメント
+        return None
+
     def _load_license(self):
         """保存されたライセンス情報を読み込む"""
-        self.license_info = {'type': LicenseTier.FREE, 'key': '', 'email': '', 'expires': None}
+        self.license_info = {'type': None, 'key': '', 'email': '', 'expires': None}
 
         if LICENSE_FILE.exists():
             try:
                 with open(LICENSE_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
 
-                if data.get('key'):
+                if data.get('key') and data.get('email'):
+                    # メールハッシュ検証
+                    stored_hash = self._extract_email_hash_from_key(data['key'])
+                    computed_hash = self._compute_email_hash(data['email'])
+
+                    if stored_hash != computed_hash:
+                        # ハッシュ不一致 - ライセンス無効
+                        return
+
                     # 有効期限を復元
                     expires_at = None
                     if data.get('expires'):
@@ -535,25 +565,35 @@ class LicenseManager:
         with open(LICENSE_FILE, 'w', encoding='utf-8') as f:
             json.dump(self.license_info, f, ensure_ascii=False, indent=2)
 
-    def _map_insight_tier(self, tier: Optional[InsightLicenseTier]) -> str:
+    def _map_insight_tier(self, tier: Optional[InsightLicenseTier]) -> Optional[str]:
         """insight-common のティアをローカルティアにマップ"""
         if not tier:
-            return LicenseTier.FREE
+            return None
         mapping = {
             InsightLicenseTier.TRIAL: LicenseTier.TRIAL,
             InsightLicenseTier.STD: LicenseTier.STD,
             InsightLicenseTier.PRO: LicenseTier.PRO,
             InsightLicenseTier.ENT: LicenseTier.ENT,
         }
-        return mapping.get(tier, LicenseTier.FREE)
+        return mapping.get(tier, None)
 
     def activate(self, email: str, key: str) -> Tuple[bool, str]:
-        """ライセンスをアクティベート"""
+        """ライセンスをアクティベート（メールハッシュ検証付き）"""
         if not email or not key:
             return False, t('license_enter_prompt')
 
+        email = email.strip()
+        key = key.strip().upper()
+
+        # メールハッシュ検証
+        key_hash = self._extract_email_hash_from_key(key)
+        email_hash = self._compute_email_hash(email)
+
+        if key_hash != email_hash:
+            return False, t('license_email_mismatch')
+
         # insight-common で検証
-        self.insight_info = self.validator.validate(key.strip())
+        self.insight_info = self.validator.validate(key)
 
         if not self.insight_info.is_valid:
             error_msg = self.insight_info.error or t('license_invalid')
@@ -584,28 +624,31 @@ class LicenseManager:
         tier = self._map_insight_tier(self.insight_info.tier)
         self.license_info = {
             'type': tier,
-            'key': key.strip().upper(),
-            'email': email.strip(),
+            'key': key,
+            'email': email,
             'expires': expires_str
         }
         self._save_license()
 
-        tier_info = TIERS.get(tier, TIERS[LicenseTier.FREE])
+        tier_info = TIERS.get(tier, TIERS[LicenseTier.TRIAL])
         name = tier_info['name_ja'] if get_language() == 'ja' else tier_info['name']
         return True, t('license_activated', name)
 
     def deactivate(self):
         """ライセンスを解除"""
-        self.license_info = {'type': LicenseTier.FREE, 'key': '', 'email': '', 'expires': None}
+        self.license_info = {'type': None, 'key': '', 'email': '', 'expires': None}
         self.insight_info = None
         if LICENSE_FILE.exists():
             LICENSE_FILE.unlink()
 
-    def get_tier(self) -> str:
-        return self.license_info.get('type', LicenseTier.FREE)
+    def get_tier(self) -> Optional[str]:
+        return self.license_info.get('type')
 
     def get_tier_info(self) -> Dict:
-        return TIERS.get(self.get_tier(), TIERS[LicenseTier.FREE])
+        tier = self.get_tier()
+        if tier is None:
+            return TIER_NOT_ACTIVATED
+        return TIERS.get(tier, TIER_NOT_ACTIVATED)
 
     def get_update_limit(self) -> Optional[int]:
         return self.get_tier_info().get('update_limit')
@@ -628,7 +671,7 @@ class LicenseManager:
 
     def is_activated(self) -> bool:
         """ライセンスがアクティベートされているか"""
-        return self.get_tier() != LicenseTier.FREE
+        return self.get_tier() is not None
 
     def get_days_until_expiry(self) -> Optional[int]:
         """有効期限までの日数を取得（期限なしの場合はNone）"""
@@ -2653,7 +2696,9 @@ class InsightSlidesApp:
         ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=10)
 
         # フォーマット説明
-        ttk.Label(frame, text="形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC", font=FONTS["small"],
+        ttk.Label(frame, text="形式: INS-SLIDE-{TIER}-{EMAIL_HASH}-XXXX-CC", font=FONTS["small"],
+                  foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 5))
+        ttk.Label(frame, text="※メールアドレスとキーの組み合わせで認証されます", font=FONTS["small"],
                   foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 10))
 
         # メールアドレス入力
@@ -2698,10 +2743,8 @@ class InsightSlidesApp:
             messagebox.showinfo(t('dialog_complete'), t('license_deactivated'))
             dialog.destroy()
             self._create_layout()
-
-        def skip_free():
-            """Free版として続行"""
-            dialog.destroy()
+            # 認証解除後は再度認証ダイアログを表示
+            self.root.after(100, lambda: self._show_license_dialog(startup_check=True))
 
         # ボタンフレーム
         btn_frame = ttk.Frame(frame)
@@ -2714,40 +2757,13 @@ class InsightSlidesApp:
 
         if not startup_check:
             ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
-        else:
-            # 起動時はFree版として続行可能
-            ttk.Button(btn_frame, text=t('license_continue_free'), command=skip_free).pack(side='right')
-
-        # リンクフレーム
-        link_frame = ttk.Frame(frame)
-        link_frame.pack(fill='x', pady=(20, 0))
-
-        def open_trial():
-            webbrowser.open(SUPPORT_LINKS.get('contact', ''))
-
-        def open_purchase():
-            webbrowser.open(SUPPORT_LINKS.get('purchase', ''))
-
-        trial_link = ttk.Label(link_frame, text=t('license_trial_link'), font=FONTS["small"],
-                               foreground=COLOR_PALETTE["brand_primary"], cursor="hand2")
-        trial_link.pack(side='left')
-        trial_link.bind("<Button-1>", lambda e: open_trial())
-
-        ttk.Label(link_frame, text="  |  ", font=FONTS["small"],
-                  foreground=COLOR_PALETTE["text_muted"]).pack(side='left')
-
-        purchase_link = ttk.Label(link_frame, text=t('btn_purchase'), font=FONTS["small"],
-                                  foreground=COLOR_PALETTE["brand_primary"], cursor="hand2")
-        purchase_link.pack(side='left')
-        purchase_link.bind("<Button-1>", lambda e: open_purchase())
 
     def _show_about(self):
         tier = self.license_manager.get_tier_info()
+        tier_name = tier['name_ja'] if get_language() == 'ja' else tier['name']
         messagebox.showinfo(t('menu_about'),
             f"{APP_NAME} v{APP_VERSION}\n\n"
-            f"ライセンス: {tier['name']}\n\n"
-            f"統一ライセンス形式:\n"
-            f"INS-SLIDE-{{TIER}}-XXXX-XXXX-CC\n\n"
+            f"ライセンス: {tier_name}\n\n"
             f"by Harmonic Insight\n© 2025"
         )
 
