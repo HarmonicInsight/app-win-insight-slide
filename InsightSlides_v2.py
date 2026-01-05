@@ -1271,14 +1271,14 @@ class EditableGrid(ttk.Frame):
 
     def _increase_row_height(self):
         """行の高さを大きくする"""
-        if self._row_height < 60:
-            self._row_height += 4
+        if self._row_height < 150:
+            self._row_height += 10
             self._update_style()
 
     def _decrease_row_height(self):
         """行の高さを小さくする"""
-        if self._row_height > 18:
-            self._row_height -= 4
+        if self._row_height > 20:
+            self._row_height -= 10
             self._update_style()
 
     def _update_style(self):
@@ -1731,18 +1731,18 @@ class InsightSlidesApp:
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   cursor="hand2", command=self._extract_single).grid(row=0, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-        # Excel読込ボタン
+        # Excel読込ボタン（青）
         tk.Button(input_card, text=t('btn_load_excel'), font=btn_font,
-                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                  activebackground=COLOR_PALETTE["brand_hover"],
                   padx=SPACING["md"], pady=SPACING["sm"],
                   cursor="hand2", command=self._load_excel_to_grid).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-        # JSON読込ボタン（Pro）
+        # JSON読込ボタン（青・Pro）
         if can_json:
             tk.Button(input_card, text=t('btn_load_json'), font=btn_font,
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                      activebackground=COLOR_PALETTE["brand_hover"],
                       padx=SPACING["md"], pady=SPACING["sm"],
                       cursor="hand2", command=self._load_json_to_grid).grid(row=2, column=0, sticky='ew')
         else:
