@@ -1282,14 +1282,14 @@ class EditableGrid(ttk.Frame):
 
     def _increase_row_height(self):
         """行の高さを大きくする"""
-        if self._row_height < 60:
-            self._row_height += 4
+        if self._row_height < 150:
+            self._row_height += 10
             self._update_style()
 
     def _decrease_row_height(self):
         """行の高さを小さくする"""
-        if self._row_height > 18:
-            self._row_height -= 4
+        if self._row_height > 20:
+            self._row_height -= 10
             self._update_style()
 
     def _update_style(self):
