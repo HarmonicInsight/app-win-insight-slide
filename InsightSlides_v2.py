@@ -55,22 +55,34 @@ class LicenseInfo:
     expires: Optional[datetime] = None
     error: Optional[str] = None
 
-# 署名用シークレットキー
-_LICENSE_SECRET = os.environ.get("INSIGHT_LICENSE_SECRET", b"insight-series-license-secret-2026")
-if isinstance(_LICENSE_SECRET, str):
-    _LICENSE_SECRET = _LICENSE_SECRET.encode()
+# 署名用シークレットキー（環境変数から取得 - 必須）
+# セキュリティ上、デフォルト値は設定しない
+_LICENSE_SECRET_RAW = os.environ.get("INSIGHT_LICENSE_SECRET")
+_LICENSE_SECRET: Optional[bytes] = None
+_LICENSE_VERIFICATION_AVAILABLE = False
+
+if _LICENSE_SECRET_RAW:
+    _LICENSE_SECRET = _LICENSE_SECRET_RAW.encode() if isinstance(_LICENSE_SECRET_RAW, str) else _LICENSE_SECRET_RAW
+    _LICENSE_VERIFICATION_AVAILABLE = True
 
 # ライセンスキー正規表現: PPPP-PLAN-YYMM-HASH-SIG1-SIG2
 import re as _re
 _LICENSE_KEY_REGEX = _re.compile(r"^(INSS|INSP)-(TRIAL|STD|PRO)-(\d{4})-([A-Z0-9]{4})-([A-Z0-9]{4})-([A-Z0-9]{4})$")
 
 def _generate_signature(data: str) -> str:
+    if not _LICENSE_VERIFICATION_AVAILABLE or _LICENSE_SECRET is None:
+        raise RuntimeError("License signing not available")
     sig = hmac.new(_LICENSE_SECRET, data.encode(), hashlib.sha256).digest()
     return base64.b32encode(sig)[:8].decode().upper()
 
 def _verify_signature(data: str, signature: str) -> bool:
-    expected = _generate_signature(data)
-    return hmac.compare_digest(expected, signature)
+    if not _LICENSE_VERIFICATION_AVAILABLE or _LICENSE_SECRET is None:
+        return False
+    try:
+        expected = _generate_signature(data)
+        return hmac.compare_digest(expected, signature)
+    except Exception:
+        return False
 
 class LicenseValidator:
     def validate(self, key: str, expires_at=None) -> LicenseInfo:
