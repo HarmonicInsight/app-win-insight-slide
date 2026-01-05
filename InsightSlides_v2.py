@@ -19,6 +19,7 @@ import pptx
 import openpyxl
 from openpyxl.styles import Font as XLFont, PatternFill
 import os
+import sys
 import re
 import csv
 import json
@@ -28,6 +29,13 @@ import string
 import webbrowser
 import traceback
 from datetime import datetime, timedelta
+
+# insight-common ライセンスモジュールをインポート
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'insight-common', 'license', 'python'))
+from __init__ import (
+    ProductCode, LicenseTier as InsightLicenseTier, LicenseInfo,
+    LicenseValidator, get_feature_limits, TIER_NAMES, TIERS as INSIGHT_TIERS
+)
 import threading
 from pathlib import Path
 from typing import Dict, Tuple, List, Optional
@@ -185,6 +193,24 @@ LANGUAGES = {
         # Log dialog
         'btn_copy_log': 'Copy',
         'btn_clear_log': 'Clear',
+        # License dialog (auth)
+        'license_auth_title': 'License Activation',
+        'license_email': 'Email Address:',
+        'license_key': 'License Key:',
+        'license_wrong_product': 'This license key is not valid for Insight Slides',
+        'license_perpetual': 'Perpetual',
+        'license_expiry_warning': 'Your license will expire in {0} days ({1}). Please renew.',
+        'license_expired': 'Your license has expired. Please renew to continue using all features.',
+        'license_trial_link': 'Request Trial',
+        'license_email_required': 'Please enter your email address',
+        'license_status_active': 'Active',
+        'license_status_expired': 'Expired',
+        'license_valid_until': 'Valid until: {0}',
+        'license_days_remaining': '({0} days remaining)',
+        'license_feature_restricted': 'This feature requires a Pro license. Current: {0}',
+        'license_batch_restricted': 'Batch processing requires a Pro license.',
+        'license_json_restricted': 'JSON export requires a Pro license.',
+        'license_continue_free': 'Continue as Free',
     },
     'ja': {
         'app_subtitle': 'PowerPointテキストを抽出 → 編集 → 反映',
@@ -318,6 +344,24 @@ LANGUAGES = {
         # Log dialog
         'btn_copy_log': 'コピー',
         'btn_clear_log': 'クリア',
+        # License dialog (auth)
+        'license_auth_title': 'ライセンス認証',
+        'license_email': 'メールアドレス:',
+        'license_key': 'ライセンスキー:',
+        'license_wrong_product': 'このライセンスキーはInsight Slidesには適用できません',
+        'license_perpetual': '永続',
+        'license_expiry_warning': 'ライセンスの有効期限まであと{0}日です（{1}まで）。更新をご検討ください。',
+        'license_expired': 'ライセンスの有効期限が切れました。継続してご利用いただくには更新が必要です。',
+        'license_trial_link': 'トライアル申請',
+        'license_email_required': 'メールアドレスを入力してください',
+        'license_status_active': '有効',
+        'license_status_expired': '期限切れ',
+        'license_valid_until': '有効期限: {0}',
+        'license_days_remaining': '（残り{0}日）',
+        'license_feature_restricted': 'この機能はProライセンスが必要です。現在: {0}',
+        'license_batch_restricted': 'フォルダ一括処理はProライセンスが必要です。',
+        'license_json_restricted': 'JSON出力はProライセンスが必要です。',
+        'license_continue_free': 'Free版で続行',
     },
 }
 
@@ -338,10 +382,11 @@ def get_language() -> str:
     return _current_lang
 
 
-# ============== ライセンス設定（統一形式） ==============
-LICENSE_SECRET = "HarmonicInsight2025"
-PRODUCT_CODE = "SLIDE"
+# ============== ライセンス設定（insight-common 統合） ==============
+PRODUCT_CODE = ProductCode.SLIDE
+EXPIRY_WARNING_DAYS = 30  # 期限切れ警告の日数
 
+# ローカルティア定義（FREE追加）
 class LicenseTier:
     FREE = "FREE"
     TRIAL = "TRIAL"
@@ -349,107 +394,130 @@ class LicenseTier:
     PRO = "PRO"
     ENT = "ENT"
 
+# ティア別設定（InsightSlide固有）
 TIERS = {
-    LicenseTier.FREE: {'name': 'Free', 'name_ja': '無料版', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'pro': False},
-    LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'pro': True, 'days': 14},
-    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': '📘 Standard', 'update_limit': None, 'batch': True, 'pro': False},
-    LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': '⭐ Pro', 'update_limit': None, 'batch': True, 'pro': True},
-    LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': '🏢 Enterprise', 'update_limit': None, 'batch': True, 'pro': True},
+    LicenseTier.FREE: {'name': 'Free', 'name_ja': '無料版', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'pro': False, 'json': False},
+    LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
+    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': False, 'pro': False, 'json': False},
+    LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
+    LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
 }
 
 
-def _generate_checksum(key_body: str) -> str:
-    return hashlib.sha256(f"{key_body}{LICENSE_SECRET}".encode()).hexdigest()[:2].upper()
-
-
-def validate_license_key(license_key: str) -> Tuple[bool, str, Optional[str]]:
-    """
-    統一形式でライセンスキーを検証
-    形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC
-    Returns: (is_valid, tier, expires)
-    """
-    if not license_key:
-        return False, LicenseTier.FREE, None
-
-    key = license_key.strip().upper()
-    parts = key.split("-")
-
-    # 形式チェック: INS-SLIDE-TIER-XXXX-XXXX-CC (6パーツ)
-    if len(parts) != 6:
-        return False, LicenseTier.FREE, None
-
-    prefix, product, tier_str, part1, part2, checksum = parts
-
-    if prefix != "INS" or product != PRODUCT_CODE:
-        return False, LicenseTier.FREE, None
-
-    if tier_str not in [LicenseTier.FREE, LicenseTier.TRIAL, LicenseTier.STD, LicenseTier.PRO, LicenseTier.ENT]:
-        return False, LicenseTier.FREE, None
-
-    # チェックサム検証
-    key_body = f"{prefix}-{product}-{tier_str}-{part1}-{part2}"
-    expected_checksum = _generate_checksum(key_body)
-    if checksum != expected_checksum:
-        return False, LicenseTier.FREE, None
-
-    # 有効期限計算
-    expires = None
-    tier_config = TIERS.get(tier_str, TIERS[LicenseTier.FREE])
-    if tier_config.get('days'):
-        expires = (datetime.now() + timedelta(days=tier_config['days'])).strftime("%Y-%m-%d")
-
-    return True, tier_str, expires
-
-
-def generate_license_key(tier: str) -> str:
-    """ライセンスキー生成: INS-SLIDE-{TIER}-XXXX-XXXX-CC"""
-    chars = string.ascii_uppercase + string.digits
-    part1 = ''.join(random.choices(chars, k=4))
-    part2 = ''.join(random.choices(chars, k=4))
-    key_body = f"INS-{PRODUCT_CODE}-{tier}-{part1}-{part2}"
-    checksum = _generate_checksum(key_body)
-    return f"{key_body}-{checksum}"
-
-
 class LicenseManager:
+    """insight-common 統合ライセンスマネージャー"""
+
     def __init__(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-        self.license_info = self._load_license()
+        self.validator = LicenseValidator()
+        self.license_info: Dict = {}
+        self.insight_info: Optional[LicenseInfo] = None
+        self._load_license()
 
-    def _load_license(self) -> Dict:
+    def _load_license(self):
+        """保存されたライセンス情報を読み込む"""
+        self.license_info = {'type': LicenseTier.FREE, 'key': '', 'email': '', 'expires': None}
+
         if LICENSE_FILE.exists():
             try:
                 with open(LICENSE_FILE, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    if data.get('key'):
-                        is_valid, tier, expires = validate_license_key(data['key'])
-                        if is_valid:
-                            return {'type': tier, 'key': data['key'], 'expires': expires}
-            except:
-                pass
-        return {'type': LicenseTier.FREE, 'key': '', 'expires': None}
 
-    def _save_license(self, data: Dict):
+                if data.get('key'):
+                    # 有効期限を復元
+                    expires_at = None
+                    if data.get('expires'):
+                        try:
+                            expires_at = datetime.fromisoformat(data['expires'])
+                        except:
+                            pass
+
+                    # insight-common で検証
+                    self.insight_info = self.validator.validate(data['key'], expires_at)
+
+                    if self.insight_info.is_valid:
+                        # 製品チェック
+                        if self.validator.is_product_covered(self.insight_info, PRODUCT_CODE):
+                            tier = self._map_insight_tier(self.insight_info.tier)
+                            self.license_info = {
+                                'type': tier,
+                                'key': data['key'],
+                                'email': data.get('email', ''),
+                                'expires': data.get('expires')
+                            }
+                            return
+
+            except Exception as e:
+                print(f"License load error: {e}")
+
+    def _save_license(self):
+        """ライセンス情報を保存"""
         with open(LICENSE_FILE, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            json.dump(self.license_info, f, ensure_ascii=False, indent=2)
 
-    def activate(self, key: str) -> Tuple[bool, str]:
-        if not key:
+    def _map_insight_tier(self, tier: Optional[InsightLicenseTier]) -> str:
+        """insight-common のティアをローカルティアにマップ"""
+        if not tier:
+            return LicenseTier.FREE
+        mapping = {
+            InsightLicenseTier.TRIAL: LicenseTier.TRIAL,
+            InsightLicenseTier.STD: LicenseTier.STD,
+            InsightLicenseTier.PRO: LicenseTier.PRO,
+            InsightLicenseTier.ENT: LicenseTier.ENT,
+        }
+        return mapping.get(tier, LicenseTier.FREE)
+
+    def activate(self, email: str, key: str) -> Tuple[bool, str]:
+        """ライセンスをアクティベート"""
+        if not email or not key:
             return False, t('license_enter_prompt')
 
-        is_valid, tier, expires = validate_license_key(key.strip())
-        if not is_valid:
-            return False, t('license_invalid')
+        # insight-common で検証
+        self.insight_info = self.validator.validate(key.strip())
 
-        self.license_info = {'type': tier, 'key': key.strip().upper(), 'expires': expires}
-        self._save_license(self.license_info)
+        if not self.insight_info.is_valid:
+            error_msg = self.insight_info.error or t('license_invalid')
+            return False, error_msg
+
+        # 製品チェック
+        if not self.validator.is_product_covered(self.insight_info, PRODUCT_CODE):
+            return False, t('license_wrong_product')
+
+        # 有効期限を計算（初回アクティベーション時）
+        expires_str = None
+        if self.insight_info.tier and self.insight_info.tier != InsightLicenseTier.ENT:
+            tier_config = INSIGHT_TIERS.get(self.insight_info.tier, {})
+            duration_months = tier_config.get('duration_months')
+            duration_days = tier_config.get('duration_days')
+
+            if duration_days:
+                expires = datetime.now() + timedelta(days=duration_days)
+                expires_str = expires.isoformat()
+            elif duration_months:
+                now = datetime.now()
+                new_month = now.month + duration_months
+                new_year = now.year + (new_month - 1) // 12
+                new_month = (new_month - 1) % 12 + 1
+                expires = datetime(new_year, new_month, min(now.day, 28))
+                expires_str = expires.isoformat()
+
+        tier = self._map_insight_tier(self.insight_info.tier)
+        self.license_info = {
+            'type': tier,
+            'key': key.strip().upper(),
+            'email': email.strip(),
+            'expires': expires_str
+        }
+        self._save_license()
 
         tier_info = TIERS.get(tier, TIERS[LicenseTier.FREE])
         name = tier_info['name_ja'] if get_language() == 'ja' else tier_info['name']
         return True, t('license_activated', name)
 
     def deactivate(self):
-        self.license_info = {'type': LicenseTier.FREE, 'key': '', 'expires': None}
+        """ライセンスを解除"""
+        self.license_info = {'type': LicenseTier.FREE, 'key': '', 'email': '', 'expires': None}
+        self.insight_info = None
         if LICENSE_FILE.exists():
             LICENSE_FILE.unlink()
 
@@ -467,6 +535,44 @@ class LicenseManager:
 
     def is_pro(self) -> bool:
         return self.get_tier_info().get('pro', False)
+
+    def can_json(self) -> bool:
+        """JSON出力が可能かどうか"""
+        return self.get_tier_info().get('json', False)
+
+    def is_activated(self) -> bool:
+        """ライセンスがアクティベートされているか"""
+        return self.get_tier() != LicenseTier.FREE
+
+    def get_days_until_expiry(self) -> Optional[int]:
+        """有効期限までの日数を取得（期限なしの場合はNone）"""
+        expires_str = self.license_info.get('expires')
+        if not expires_str:
+            return None
+        try:
+            expires = datetime.fromisoformat(expires_str)
+            delta = expires - datetime.now()
+            return delta.days
+        except:
+            return None
+
+    def should_show_expiry_warning(self) -> bool:
+        """期限切れ警告を表示すべきか"""
+        days = self.get_days_until_expiry()
+        if days is None:
+            return False
+        return 0 < days <= EXPIRY_WARNING_DAYS
+
+    def get_expiry_date_str(self) -> str:
+        """有効期限の表示文字列"""
+        expires_str = self.license_info.get('expires')
+        if not expires_str:
+            return t('license_perpetual') if self.get_tier() == LicenseTier.ENT else '-'
+        try:
+            expires = datetime.fromisoformat(expires_str)
+            return expires.strftime('%Y/%m/%d')
+        except:
+            return '-'
 
 
 # ============== モダンデザインシステム ==============
@@ -1123,6 +1229,9 @@ class InsightSlidesApp:
         self._create_layout()
         self.root.protocol("WM_DELETE_WINDOW", self._on_closing)
 
+        # 起動時ライセンスチェック（UIが表示された後に実行）
+        self.root.after(100, self._check_license_on_startup)
+
     def _setup_window(self):
         tier = self.license_manager.get_tier_info()
         self.root.title(f"{APP_NAME} v{APP_VERSION} - {tier['name']}")
@@ -1438,12 +1547,16 @@ class InsightSlidesApp:
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   cursor="hand2", command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
-        # セカンダリボタン
-        tk.Button(self.update_frame, text=t('btn_from_json'), font=(FONT_FAMILY_SANS, 10),
-                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                  activebackground=COLOR_PALETTE["secondary_hover"],
-                  padx=SPACING["md"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew')
+        # セカンダリボタン（JSON）- Pro のみ
+        if self.license_manager.can_json():
+            tk.Button(self.update_frame, text=t('btn_from_json'), font=(FONT_FAMILY_SANS, 10),
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew')
+        else:
+            tk.Label(self.update_frame, text=f"{t('btn_from_json')} (Pro)", font=(FONT_FAMILY_SANS, 10),
+                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=2, column=0, sticky='w')
 
     def _create_batch_panel(self, parent):
         """フォルダ一括処理パネル"""
@@ -1454,24 +1567,33 @@ class InsightSlidesApp:
         tk.Label(header_frame, text=t('panel_batch'), font=FONTS["body_bold"],
                  fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
 
-        if self.license_manager.is_pro():
+        # バッチ処理はPro版のみ
+        can_batch = self.license_manager.can_batch()
+        can_json = self.license_manager.can_json()
+
+        if can_batch:
             tk.Label(header_frame, text="PRO", font=(FONT_FAMILY_SANS, 9, 'bold'),
                      fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["sm"], 0))
 
         # ボタンスタイル（アウトライン）
         outline_color = COLOR_PALETTE["brand_primary"]
+        disabled_color = COLOR_PALETTE["text_muted"]
 
-        # 出力ボタン（Excel）
-        export_excel_btn = tk.Button(parent, text=t('btn_batch_export_excel'), font=(FONT_FAMILY_SANS, 10),
-                                     bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                     relief="solid", bd=1, highlightthickness=0,
-                                     activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                     padx=SPACING["md"], pady=SPACING["sm"],
-                                     cursor="hand2", command=lambda: self._extract_batch("excel"))
-        export_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+        # 出力ボタン（Excel）- Pro のみ
+        if can_batch:
+            export_excel_btn = tk.Button(parent, text=t('btn_batch_export_excel'), font=(FONT_FAMILY_SANS, 10),
+                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                         relief="solid", bd=1, highlightthickness=0,
+                                         activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                         padx=SPACING["md"], pady=SPACING["sm"],
+                                         cursor="hand2", command=lambda: self._extract_batch("excel"))
+            export_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+        else:
+            ttk.Label(parent, text=f"{t('btn_batch_export_excel')} (Pro)",
+                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
 
-        # 出力ボタン（JSON）- Pro のみ
-        if self.license_manager.is_pro():
+        # 出力ボタン（JSON）- Pro + JSON対応のみ
+        if can_batch and can_json:
             export_json_btn = tk.Button(parent, text=t('btn_batch_export_json'), font=(FONT_FAMILY_SANS, 10),
                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
                                         relief="solid", bd=1, highlightthickness=0,
@@ -1483,17 +1605,21 @@ class InsightSlidesApp:
             ttk.Label(parent, text=f"{t('btn_batch_export_json')} (Pro)",
                       style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["sm"]))
 
-        # 読込ボタン（Excel）
-        import_excel_btn = tk.Button(parent, text=t('btn_batch_import_excel'), font=(FONT_FAMILY_SANS, 10),
-                                     bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                     relief="solid", bd=1, highlightthickness=0,
-                                     activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                     padx=SPACING["md"], pady=SPACING["sm"],
-                                     cursor="hand2", command=lambda: self._update_batch("excel"))
-        import_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+        # 読込ボタン（Excel）- Pro のみ
+        if can_batch:
+            import_excel_btn = tk.Button(parent, text=t('btn_batch_import_excel'), font=(FONT_FAMILY_SANS, 10),
+                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
+                                         relief="solid", bd=1, highlightthickness=0,
+                                         activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
+                                         padx=SPACING["md"], pady=SPACING["sm"],
+                                         cursor="hand2", command=lambda: self._update_batch("excel"))
+            import_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
+        else:
+            ttk.Label(parent, text=f"{t('btn_batch_import_excel')} (Pro)",
+                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
 
-        # 読込ボタン（JSON）- Pro のみ
-        if self.license_manager.is_pro():
+        # 読込ボタン（JSON）- Pro + JSON対応のみ
+        if can_batch and can_json:
             import_json_btn = tk.Button(parent, text=t('btn_batch_import_json'), font=(FONT_FAMILY_SANS, 10),
                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
                                         relief="solid", bd=1, highlightthickness=0,
@@ -1599,13 +1725,19 @@ class InsightSlidesApp:
                   cursor="hand2", command=self._export_grid_excel, state='disabled')
         self.export_excel_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
-        # エクスポートボタン（JSON）
-        self.export_json_btn = tk.Button(action_bar, text=t('btn_export_json'), font=(FONT_FAMILY_SANS, 10),
-                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                  padx=SPACING["md"], pady=SPACING["sm"],
-                  activebackground=COLOR_PALETTE["secondary_hover"],
-                  cursor="hand2", command=self._export_grid_json, state='disabled')
-        self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
+        # エクスポートボタン（JSON）- Pro のみ
+        if self.license_manager.can_json():
+            self.export_json_btn = tk.Button(action_bar, text=t('btn_export_json'), font=(FONT_FAMILY_SANS, 10),
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      cursor="hand2", command=self._export_grid_json, state='disabled')
+            self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
+        else:
+            self.export_json_btn = tk.Button(action_bar, text=f"{t('btn_export_json')} (Pro)", font=(FONT_FAMILY_SANS, 10),
+                      bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_muted"], relief="flat",
+                      padx=SPACING["md"], pady=SPACING["sm"], state='disabled')
+            self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
     def _create_welcome_guide(self):
         """初期状態のウェルカムガイド"""
@@ -2405,37 +2537,134 @@ class InsightSlidesApp:
             messagebox.showinfo("完了", f"エクスポート完了: {path}")
 
     # === Dialogs ===
-    def _show_license_dialog(self):
+    def _check_license_on_startup(self):
+        """起動時のライセンスチェック"""
+        # ライセンスが未アクティベートの場合、認証ダイアログを表示
+        if not self.license_manager.is_activated():
+            self._show_license_dialog(startup_check=True)
+            return
+
+        # 有効期限切れチェック
+        days = self.license_manager.get_days_until_expiry()
+        if days is not None and days <= 0:
+            # 期限切れ - Free版にダウングレード
+            messagebox.showwarning(
+                t('dialog_error'),
+                t('license_expired')
+            )
+            self.license_manager.deactivate()
+            self._create_layout()
+            self._show_license_dialog(startup_check=True)
+            return
+
+        # 期限切れ警告（30日以内）
+        if self.license_manager.should_show_expiry_warning():
+            expiry_str = self.license_manager.get_expiry_date_str()
+            messagebox.showinfo(
+                t('license_title'),
+                t('license_expiry_warning', days, expiry_str)
+            )
+
+    def _show_license_dialog(self, startup_check: bool = False):
+        """ライセンス認証ダイアログを表示
+
+        Args:
+            startup_check: 起動時チェックの場合True（キャンセル不可）
+        """
         dialog = tk.Toplevel(self.root)
-        dialog.title(t('license_title'))
-        dialog.geometry("450x400")
+        dialog.title(t('license_auth_title'))
+        dialog.geometry("500x480")
         dialog.transient(self.root)
         dialog.grab_set()
+
+        if startup_check:
+            dialog.protocol("WM_DELETE_WINDOW", lambda: None)  # 閉じるボタン無効
 
         frame = ttk.Frame(dialog, padding=20)
         frame.pack(fill='both', expand=True)
 
+        # ヘッダー
+        header_frame = ttk.Frame(frame)
+        header_frame.pack(fill='x', pady=(0, 15))
+        ttk.Label(header_frame, text=APP_NAME, font=FONTS["heading"]).pack(side='left')
+
         tier = self.license_manager.get_tier_info()
-        ttk.Label(frame, text=t('license_current'), font=FONTS["heading"]).pack(anchor='w')
-        ttk.Label(frame, text=f"{tier['badge']} ({tier['name']})", font=FONTS["body_bold"]).pack(anchor='w', pady=(5, 15))
+        tier_name = tier['name_ja'] if get_language() == 'ja' else tier['name']
 
+        # 現在のステータス表示
+        status_frame = ttk.Frame(frame, style="Card.TFrame")
+        status_frame.pack(fill='x', pady=(0, 15))
+
+        ttk.Label(status_frame, text=t('license_current'), font=FONTS["body_bold"]).pack(anchor='w', pady=(10, 5), padx=10)
+
+        status_inner = ttk.Frame(status_frame)
+        status_inner.pack(fill='x', padx=10, pady=(0, 10))
+
+        badge_text = f"{tier['badge']}"
+        ttk.Label(status_inner, text=badge_text, font=FONTS["body_bold"],
+                  foreground=COLOR_PALETTE["accent_blue"]).pack(side='left')
+
+        if self.license_manager.is_activated():
+            # 有効期限表示
+            expiry_str = self.license_manager.get_expiry_date_str()
+            days = self.license_manager.get_days_until_expiry()
+
+            if days is not None:
+                if days > 0:
+                    status_text = f"  |  {t('license_valid_until', expiry_str)} {t('license_days_remaining', days)}"
+                    status_color = COLOR_PALETTE["success"] if days > 30 else COLOR_PALETTE["warning"]
+                else:
+                    status_text = f"  |  {t('license_status_expired')}"
+                    status_color = COLOR_PALETTE["error"]
+            else:
+                status_text = f"  |  {t('license_perpetual')}"
+                status_color = COLOR_PALETTE["success"]
+
+            ttk.Label(status_inner, text=status_text, font=FONTS["small"],
+                      foreground=status_color).pack(side='left')
+
+        ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=10)
+
+        # フォーマット説明
         ttk.Label(frame, text="形式: INS-SLIDE-{TIER}-XXXX-XXXX-CC", font=FONTS["small"],
-                  foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w')
+                  foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 10))
 
-        ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=15)
+        # メールアドレス入力
+        ttk.Label(frame, text=t('license_email'), font=FONTS["body"]).pack(anchor='w')
+        email_var = tk.StringVar(value=self.license_manager.license_info.get('email', ''))
+        email_entry = ttk.Entry(frame, textvariable=email_var, width=45, font=FONTS["body"])
+        email_entry.pack(fill='x', pady=(5, 10))
 
-        ttk.Label(frame, text=t('license_enter_key')).pack(anchor='w')
-        key_var = tk.StringVar()
-        ttk.Entry(frame, textvariable=key_var, width=40, font=FONTS["body"]).pack(fill='x', pady=(5, 15))
+        # ライセンスキー入力
+        ttk.Label(frame, text=t('license_key'), font=FONTS["body"]).pack(anchor='w')
+        key_var = tk.StringVar(value=self.license_manager.license_info.get('key', ''))
+        key_entry = ttk.Entry(frame, textvariable=key_var, width=45, font=FONTS["body"])
+        key_entry.pack(fill='x', pady=(5, 10))
+
+        # エラーメッセージ表示用
+        error_var = tk.StringVar()
+        error_label = ttk.Label(frame, textvariable=error_var, font=FONTS["small"],
+                                foreground=COLOR_PALETTE["error"])
+        error_label.pack(anchor='w', pady=(0, 10))
 
         def activate():
-            ok, msg = self.license_manager.activate(key_var.get())
+            email = email_var.get().strip()
+            key = key_var.get().strip()
+
+            if not email:
+                error_var.set(t('license_email_required'))
+                return
+            if not key:
+                error_var.set(t('license_enter_prompt'))
+                return
+
+            ok, msg = self.license_manager.activate(email, key)
             if ok:
                 messagebox.showinfo(t('dialog_complete'), msg)
                 dialog.destroy()
                 self._create_layout()
             else:
-                messagebox.showerror(t('dialog_error'), msg)
+                error_var.set(msg)
 
         def deactivate():
             self.license_manager.deactivate()
@@ -2443,14 +2672,47 @@ class InsightSlidesApp:
             dialog.destroy()
             self._create_layout()
 
-        btn_frame = ttk.Frame(frame)
-        btn_frame.pack(fill='x')
+        def skip_free():
+            """Free版として続行"""
+            dialog.destroy()
 
-        if tier['name'] != 'Free':
+        # ボタンフレーム
+        btn_frame = ttk.Frame(frame)
+        btn_frame.pack(fill='x', pady=(10, 0))
+
+        if self.license_manager.is_activated():
             ttk.Button(btn_frame, text=t('btn_deactivate'), command=deactivate).pack(side='left')
 
-        ttk.Button(btn_frame, text=t('btn_activate'), command=activate).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
+        ttk.Button(btn_frame, text=t('btn_activate'), command=activate, style="Accent.TButton").pack(side='left', padx=5)
+
+        if not startup_check:
+            ttk.Button(btn_frame, text=t('btn_close'), command=dialog.destroy).pack(side='right')
+        else:
+            # 起動時はFree版として続行可能
+            ttk.Button(btn_frame, text=t('license_continue_free'), command=skip_free).pack(side='right')
+
+        # リンクフレーム
+        link_frame = ttk.Frame(frame)
+        link_frame.pack(fill='x', pady=(20, 0))
+
+        def open_trial():
+            webbrowser.open(SUPPORT_LINKS.get('contact', ''))
+
+        def open_purchase():
+            webbrowser.open(SUPPORT_LINKS.get('purchase', ''))
+
+        trial_link = ttk.Label(link_frame, text=t('license_trial_link'), font=FONTS["small"],
+                               foreground=COLOR_PALETTE["accent_blue"], cursor="hand2")
+        trial_link.pack(side='left')
+        trial_link.bind("<Button-1>", lambda e: open_trial())
+
+        ttk.Label(link_frame, text="  |  ", font=FONTS["small"],
+                  foreground=COLOR_PALETTE["text_muted"]).pack(side='left')
+
+        purchase_link = ttk.Label(link_frame, text=t('btn_purchase'), font=FONTS["small"],
+                                  foreground=COLOR_PALETTE["accent_blue"], cursor="hand2")
+        purchase_link.pack(side='left')
+        purchase_link.bind("<Button-1>", lambda e: open_purchase())
 
     def _show_about(self):
         tier = self.license_manager.get_tier_info()
