@@ -454,12 +454,13 @@ class LicenseTier:
     ENT = "ENT"
 
 # ティア別設定（InsightSlide固有）
+# json: 1ファイルJSON入出力, batch: フォルダ一括処理, compare: 2ファイル比較
 TIERS = {
-    LicenseTier.FREE: {'name': 'Free', 'name_ja': '無料版', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'pro': False, 'json': False},
-    LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
-    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
-    LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
-    LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'pro': True, 'json': True},
+    LicenseTier.FREE: {'name': 'Free', 'name_ja': '無料版', 'badge': 'Free', 'update_limit': 3, 'batch': False, 'json': False, 'compare': False},
+    LicenseTier.TRIAL: {'name': 'Trial', 'name_ja': 'トライアル', 'badge': 'Trial', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
+    LicenseTier.STD: {'name': 'Standard', 'name_ja': 'スタンダード', 'badge': 'Standard', 'update_limit': None, 'batch': False, 'json': False, 'compare': True},
+    LicenseTier.PRO: {'name': 'Professional', 'name_ja': 'プロフェッショナル', 'badge': 'Pro', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
+    LicenseTier.ENT: {'name': 'Enterprise', 'name_ja': 'エンタープライズ', 'badge': 'Enterprise', 'update_limit': None, 'batch': True, 'json': True, 'compare': True},
 }
 
 
@@ -590,14 +591,20 @@ class LicenseManager:
         return self.get_tier_info().get('update_limit')
 
     def can_batch(self) -> bool:
+        """フォルダ一括処理が可能か（PRO/Trial/ENT）"""
         return self.get_tier_info().get('batch', False)
 
-    def is_pro(self) -> bool:
-        return self.get_tier_info().get('pro', False)
-
     def can_json(self) -> bool:
-        """JSON出力が可能かどうか"""
+        """1ファイルJSON入出力が可能か（PRO/Trial/ENT）"""
         return self.get_tier_info().get('json', False)
+
+    def can_compare(self) -> bool:
+        """2ファイル比較が可能か（STD以上）"""
+        return self.get_tier_info().get('compare', False)
+
+    def is_pro(self) -> bool:
+        """後方互換性のため維持（PRO機能 = batch + json）"""
+        return self.can_batch() and self.can_json()
 
     def is_activated(self) -> bool:
         """ライセンスがアクティベートされているか"""
@@ -1494,12 +1501,17 @@ class InsightSlidesApp:
                                     command=self._switch_update, cursor="hand2")
         self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, SPACING["xs"]))
 
-        # 比較ボタン（セカンダリ）
-        self.compare_btn = tk.Button(mode_card, text=t('btn_compare'), font=btn_font,
-                                     bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
-                                     activebackground=COLOR_PALETTE["secondary_hover"],
+        # 比較ボタン（セカンダリ）- STD以上
+        can_compare = self.license_manager.can_compare()
+        compare_text = t('btn_compare') if can_compare else f"{t('btn_compare')} (STD)"
+        self.compare_btn = tk.Button(mode_card, text=compare_text, font=btn_font,
+                                     bg=COLOR_PALETTE["secondary_default"] if can_compare else COLOR_PALETTE["bg_secondary"],
+                                     fg=COLOR_PALETTE["text_secondary"] if can_compare else COLOR_PALETTE["text_muted"],
+                                     activebackground=COLOR_PALETTE["secondary_hover"] if can_compare else COLOR_PALETTE["bg_secondary"],
                                      relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
-                                     command=self._show_compare_dialog, cursor="hand2")
+                                     command=self._show_compare_dialog if can_compare else None,
+                                     cursor="hand2" if can_compare else "arrow",
+                                     state='normal' if can_compare else 'disabled')
         self.compare_btn.grid(row=0, column=2, sticky='ew')
 
         # 説明ラベル（ヒント）
@@ -1606,7 +1618,7 @@ class InsightSlidesApp:
                   padx=SPACING["lg"], pady=SPACING["sm"],
                   cursor="hand2", command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
 
-        # セカンダリボタン（JSON）- Standard版以上
+        # セカンダリボタン（JSON）- Pro版以上
         if self.license_manager.can_json():
             tk.Button(self.update_frame, text=t('btn_from_json'), font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
@@ -1614,7 +1626,7 @@ class InsightSlidesApp:
                       padx=SPACING["md"], pady=SPACING["sm"],
                       cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew')
         else:
-            tk.Label(self.update_frame, text=f"{t('btn_from_json')} (Standard)", font=(FONT_FAMILY_SANS, 10),
+            tk.Label(self.update_frame, text=f"{t('btn_from_json')} (Pro)", font=(FONT_FAMILY_SANS, 10),
                      fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=2, column=0, sticky='w')
 
     def _create_batch_panel(self, parent):
@@ -1626,19 +1638,19 @@ class InsightSlidesApp:
         tk.Label(header_frame, text=t('panel_batch'), font=FONTS["body_bold"],
                  fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
 
-        # バッチ処理はStandard版以上
+        # バッチ処理はPro版以上
         can_batch = self.license_manager.can_batch()
         can_json = self.license_manager.can_json()
 
         if can_batch:
-            tk.Label(header_frame, text="Standard", font=(FONT_FAMILY_SANS, 9, 'bold'),
+            tk.Label(header_frame, text="Pro", font=(FONT_FAMILY_SANS, 9, 'bold'),
                      fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["sm"], 0))
 
         # ボタンスタイル（アウトライン）
         outline_color = COLOR_PALETTE["brand_primary"]
         disabled_color = COLOR_PALETTE["text_muted"]
 
-        # 出力ボタン（Excel）- Standard版以上
+        # 出力ボタン（Excel）- Pro版以上
         if can_batch:
             export_excel_btn = tk.Button(parent, text=t('btn_batch_export_excel'), font=(FONT_FAMILY_SANS, 10),
                                          bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
@@ -1648,7 +1660,7 @@ class InsightSlidesApp:
                                          cursor="hand2", command=lambda: self._extract_batch("excel"))
             export_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
         else:
-            ttk.Label(parent, text=f"{t('btn_batch_export_excel')} (Standard)",
+            ttk.Label(parent, text=f"{t('btn_batch_export_excel')} (Pro)",
                       style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
 
         # 出力ボタン（JSON）- Pro + JSON対応のみ
@@ -1661,10 +1673,10 @@ class InsightSlidesApp:
                                         cursor="hand2", command=lambda: self._extract_batch("json"))
             export_json_btn.pack(fill='x', pady=(0, SPACING["sm"]))
         else:
-            ttk.Label(parent, text=f"{t('btn_batch_export_json')} (Standard)",
+            ttk.Label(parent, text=f"{t('btn_batch_export_json')} (Pro)",
                       style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["sm"]))
 
-        # 読込ボタン（Excel）- Standard版以上
+        # 読込ボタン（Excel）- Pro版以上
         if can_batch:
             import_excel_btn = tk.Button(parent, text=t('btn_batch_import_excel'), font=(FONT_FAMILY_SANS, 10),
                                          bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
@@ -1674,7 +1686,7 @@ class InsightSlidesApp:
                                          cursor="hand2", command=lambda: self._update_batch("excel"))
             import_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
         else:
-            ttk.Label(parent, text=f"{t('btn_batch_import_excel')} (Standard)",
+            ttk.Label(parent, text=f"{t('btn_batch_import_excel')} (Pro)",
                       style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
 
         # 読込ボタン（JSON）- Pro + JSON対応のみ
@@ -1687,7 +1699,7 @@ class InsightSlidesApp:
                                         cursor="hand2", command=lambda: self._update_batch("json"))
             import_json_btn.pack(fill='x')
         else:
-            ttk.Label(parent, text=f"{t('btn_batch_import_json')} (Standard)",
+            ttk.Label(parent, text=f"{t('btn_batch_import_json')} (Pro)",
                       style='Muted.TLabel').pack(anchor='w')
 
     def _create_advanced_options(self):
@@ -1699,7 +1711,7 @@ class InsightSlidesApp:
                              state='normal' if can_notes else 'disabled')
         cb.grid(row=0, column=0, sticky='w')
         if not can_notes:
-            ttk.Label(self.advanced_content, text="(Standard)", foreground=COLOR_PALETTE["text_muted"]).grid(row=0, column=1, sticky='w')
+            ttk.Label(self.advanced_content, text="(Pro)", foreground=COLOR_PALETTE["text_muted"]).grid(row=0, column=1, sticky='w')
 
         # 自動バックアップ
         self.auto_backup_var = tk.BooleanVar(value=self.config_manager.get('auto_backup', True))
@@ -1709,7 +1721,7 @@ class InsightSlidesApp:
                               state='normal' if can_backup else 'disabled')
         cb2.grid(row=1, column=0, sticky='w')
         if not can_backup:
-            ttk.Label(self.advanced_content, text="(Standard)", foreground=COLOR_PALETTE["text_muted"]).grid(row=1, column=1, sticky='w')
+            ttk.Label(self.advanced_content, text="(Pro)", foreground=COLOR_PALETTE["text_muted"]).grid(row=1, column=1, sticky='w')
 
     def _toggle_advanced(self, event=None):
         if self.advanced_var.get():
@@ -1784,7 +1796,7 @@ class InsightSlidesApp:
                   cursor="hand2", command=self._export_grid_excel, state='disabled')
         self.export_excel_btn.pack(side='right', padx=(0, SPACING["sm"]))
 
-        # エクスポートボタン（JSON）- Standard版以上
+        # エクスポートボタン（JSON）- Pro版以上
         if self.license_manager.can_json():
             self.export_json_btn = tk.Button(action_bar, text=t('btn_export_json'), font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
@@ -1793,7 +1805,7 @@ class InsightSlidesApp:
                       cursor="hand2", command=self._export_grid_json, state='disabled')
             self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
         else:
-            self.export_json_btn = tk.Button(action_bar, text=f"{t('btn_export_json')} (Standard)", font=(FONT_FAMILY_SANS, 10),
+            self.export_json_btn = tk.Button(action_bar, text=f"{t('btn_export_json')} (Pro)", font=(FONT_FAMILY_SANS, 10),
                       bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_muted"], relief="flat",
                       padx=SPACING["md"], pady=SPACING["sm"], state='disabled')
             self.export_json_btn.pack(side='right', padx=(0, SPACING["sm"]))
