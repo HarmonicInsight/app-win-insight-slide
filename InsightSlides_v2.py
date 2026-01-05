@@ -1557,7 +1557,7 @@ class InsightSlidesApp:
 
         license_btn = tk.Button(right, text=f"🔑 {t('btn_license')}", font=FONTS["small"],
                                 fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"],
-                                bd=0, cursor="hand2", activeforeground=COLOR_PALETTE["brand_secondary"],
+                                bd=0, cursor="hand2", activeforeground=COLOR_PALETTE["text_primary"],
                                 command=self._show_license_dialog)
         license_btn.pack(side='right')
 
