@@ -77,6 +77,8 @@ LANGUAGES = {
         'mode_update_short': 'Overwrite',
         'panel_mode': 'Mode Selection',
         'panel_file': 'File Operations',
+        'panel_input': 'Input (Single File)',
+        'panel_output_file': 'Output (Single File)',
         'panel_settings': 'Settings',
         'panel_status': 'Status',
         'panel_output': 'Extracted Data',
@@ -85,10 +87,18 @@ LANGUAGES = {
         'panel_extract_run': 'Run Extract',
         'panel_update_run': 'Run Update',
         'panel_pro_features': 'Pro Features',
+        'btn_load_pptx': 'Load PPTX',
+        'btn_load_excel': 'Load Excel',
+        'btn_load_json': 'Load JSON',
         'btn_single_file': 'Select File',
         'btn_from_excel': 'From Excel',
         'btn_from_json': 'From JSON',
-        'panel_batch': 'Folder Batch Processing',
+        'btn_apply_pptx': 'Apply to PPTX',
+        'btn_export_to_excel': 'Export to Excel',
+        'btn_export_to_json': 'Export to JSON',
+        'panel_batch': 'Folder Batch',
+        'btn_batch_extract': 'Batch Extract',
+        'btn_batch_update': 'Batch Update',
         'btn_batch_export_excel': 'Export to Folder (Excel)',
         'btn_batch_export_json': 'Export to Folder (JSON)',
         'btn_batch_import_excel': 'Import from Folder (Excel)',
@@ -254,6 +264,8 @@ LANGUAGES = {
         'mode_update_short': '上書き更新',
         'panel_mode': 'モード選択',
         'panel_file': 'ファイル操作',
+        'panel_input': '入力（1ファイル）',
+        'panel_output_file': '出力（1ファイル）',
         'panel_settings': '処理設定',
         'panel_status': '処理状況',
         'panel_output': '抽出結果',
@@ -262,10 +274,18 @@ LANGUAGES = {
         'panel_extract_run': '抽出実行',
         'panel_update_run': '更新実行',
         'panel_pro_features': '拡張機能',
+        'btn_load_pptx': 'PPTX読込',
+        'btn_load_excel': 'Excel読込',
+        'btn_load_json': 'JSON読込',
         'btn_single_file': 'ファイル選択',
         'btn_from_excel': 'Excelから更新',
         'btn_from_json': 'JSONから更新',
-        'panel_batch': 'フォルダ一括処理',
+        'btn_apply_pptx': 'PPTXに反映',
+        'btn_export_to_excel': 'Excel出力',
+        'btn_export_to_json': 'JSON出力',
+        'panel_batch': 'フォルダ一括',
+        'btn_batch_extract': '一括抽出',
+        'btn_batch_update': '一括更新',
         'btn_batch_export_excel': 'フォルダに出力 (Excel)',
         'btn_batch_export_json': 'フォルダに出力 (JSON)',
         'btn_batch_import_excel': 'フォルダから読込 (Excel)',
@@ -1282,12 +1302,13 @@ class InsightSlidesApp:
         self.root = root
         self.license_manager = LicenseManager()
         self.config_manager = ConfigManager()
-        self.current_mode = "extract"
         self.processing = False
         self.cancel_requested = False
         self.presentation = None
         self.log_buffer = []
         self.extracted_data = []  # グリッド用
+        self.include_notes_var = tk.BooleanVar(value=False)
+        self.auto_backup_var = tk.BooleanVar(value=self.config_manager.get('auto_backup', True))
 
         self._setup_window()
         self._apply_styles()
@@ -1469,87 +1490,127 @@ class InsightSlidesApp:
                  fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).pack(side='right')
 
     def _create_controls(self, parent):
-        """左サイドバー - カード構造で整理"""
+        """左サイドバー - 3セクション構成（入力/出力/フォルダ一括）"""
         frame = ttk.Frame(parent, style='Sidebar.TFrame')
         frame.grid(row=0, column=0, sticky='nsew', padx=(0, SPACING["xl"]))
-        frame.grid_rowconfigure(5, weight=1)
+        frame.grid_rowconfigure(4, weight=1)
 
-        # モード切替（セグメントコントロール風）
-        mode_card = ttk.LabelFrame(frame, text=t('mode_section'), padding=SPACING["lg"])
-        mode_card.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        mode_card.grid_columnconfigure(0, weight=1)
-        mode_card.grid_columnconfigure(1, weight=1)
-        mode_card.grid_columnconfigure(2, weight=1)
-
-        # ボタンフォント（直接指定）
         btn_font = (FONT_FAMILY_SANS, 10)
-        btn_padding = SPACING["sm"]
-
-        # 抽出ボタン（プライマリ）
-        self.extract_btn = tk.Button(mode_card, text=t('mode_extract_short'), font=btn_font,
-                                     bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
-                                     activebackground=COLOR_PALETTE["brand_hover"], activeforeground="#FFFFFF",
-                                     relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
-                                     command=self._switch_extract, cursor="hand2")
-        self.extract_btn.grid(row=0, column=0, sticky='ew', padx=(0, SPACING["xs"]))
-
-        # 更新ボタン（セカンダリ）
-        self.update_btn = tk.Button(mode_card, text=t('mode_update_short'), font=btn_font,
-                                    bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"],
-                                    activebackground=COLOR_PALETTE["secondary_hover"],
-                                    relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
-                                    command=self._switch_update, cursor="hand2")
-        self.update_btn.grid(row=0, column=1, sticky='ew', padx=(0, SPACING["xs"]))
-
-        # 比較ボタン（セカンダリ）- STD以上
+        can_json = self.license_manager.can_json()
+        can_batch = self.license_manager.can_batch()
         can_compare = self.license_manager.can_compare()
-        compare_text = t('btn_compare') if can_compare else f"{t('btn_compare')} (STD)"
-        self.compare_btn = tk.Button(mode_card, text=compare_text, font=btn_font,
-                                     bg=COLOR_PALETTE["secondary_default"] if can_compare else COLOR_PALETTE["bg_secondary"],
-                                     fg=COLOR_PALETTE["text_secondary"] if can_compare else COLOR_PALETTE["text_muted"],
-                                     activebackground=COLOR_PALETTE["secondary_hover"] if can_compare else COLOR_PALETTE["bg_secondary"],
-                                     relief="flat", bd=0, padx=SPACING["md"], pady=btn_padding,
-                                     command=self._show_compare_dialog if can_compare else None,
-                                     cursor="hand2" if can_compare else "arrow",
-                                     state='normal' if can_compare else 'disabled')
-        self.compare_btn.grid(row=0, column=2, sticky='ew')
 
-        # 説明ラベル（ヒント）
-        self.mode_desc_label = tk.Label(mode_card, text=t('mode_desc_extract'),
-                                        font=FONTS["caption"], fg=COLOR_PALETTE["text_tertiary"],
-                                        bg=COLOR_PALETTE["bg_primary"])
-        self.mode_desc_label.grid(row=1, column=0, columnspan=3, sticky='w', pady=(SPACING["sm"], 0))
+        # ============ 入力（1ファイル）セクション ============
+        input_card = ttk.LabelFrame(frame, text=t('panel_input'), padding=SPACING["md"])
+        input_card.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        input_card.grid_columnconfigure(0, weight=1)
 
-        # ファイル操作
-        self.file_card = ttk.LabelFrame(frame, text=t('panel_file'), padding=SPACING["md"])
-        self.file_card.grid(row=1, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        self.file_card.grid_columnconfigure(0, weight=1)
+        # PPTX読込ボタン（プライマリ）
+        tk.Button(input_card, text=t('btn_load_pptx'), font=btn_font,
+                  bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
+                  activebackground=COLOR_PALETTE["brand_hover"],
+                  padx=SPACING["lg"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._extract_single).grid(row=0, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-        self._create_extract_panel()
-        self._create_update_panel()
+        # Excel読込ボタン
+        tk.Button(input_card, text=t('btn_load_excel'), font=btn_font,
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  padx=SPACING["md"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._load_excel_to_grid).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-        # フォルダ一括処理セクション
-        batch_card = ttk.LabelFrame(frame, text="", padding=SPACING["md"])
+        # JSON読込ボタン（Pro）
+        if can_json:
+            tk.Button(input_card, text=t('btn_load_json'), font=btn_font,
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._load_json_to_grid).grid(row=2, column=0, sticky='ew')
+        else:
+            tk.Label(input_card, text=f"{t('btn_load_json')} (Pro)", font=btn_font,
+                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=2, column=0, sticky='w')
+
+        # ============ 出力（1ファイル）セクション ============
+        output_card = ttk.LabelFrame(frame, text=t('panel_output_file'), padding=SPACING["md"])
+        output_card.grid(row=1, column=0, sticky='ew', pady=(0, SPACING["md"]))
+        output_card.grid_columnconfigure(0, weight=1)
+
+        # スライド制限警告
+        limit = self.license_manager.get_update_limit()
+        if limit:
+            warn_frame = tk.Frame(output_card, bg=COLOR_PALETTE["warning_light"], padx=SPACING["sm"], pady=SPACING["xs"])
+            warn_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["sm"]))
+            tk.Label(warn_frame, text=t('msg_update_limit', limit), font=FONTS["small"],
+                    fg=COLOR_PALETTE["warning"], bg=COLOR_PALETTE["warning_light"]).pack(anchor='w')
+
+        # PPTXに反映ボタン（プライマリ）
+        tk.Button(output_card, text=t('btn_apply_pptx'), font=btn_font,
+                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
+                  activebackground="#047857",
+                  padx=SPACING["lg"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._apply_grid_to_pptx).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
+
+        # Excel出力ボタン
+        tk.Button(output_card, text=t('btn_export_to_excel'), font=btn_font,
+                  bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                  activebackground=COLOR_PALETTE["secondary_hover"],
+                  padx=SPACING["md"], pady=SPACING["sm"],
+                  cursor="hand2", command=self._export_grid_excel).grid(row=2, column=0, sticky='ew', pady=(0, SPACING["xs"]))
+
+        # JSON出力ボタン（Pro）
+        if can_json:
+            tk.Button(output_card, text=t('btn_export_to_json'), font=btn_font,
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._export_grid_json).grid(row=3, column=0, sticky='ew')
+        else:
+            tk.Label(output_card, text=f"{t('btn_export_to_json')} (Pro)", font=btn_font,
+                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=3, column=0, sticky='w')
+
+        # ============ フォルダ一括セクション ============
+        batch_card = ttk.LabelFrame(frame, text=t('panel_batch'), padding=SPACING["md"])
         batch_card.grid(row=2, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        self._create_batch_panel(batch_card)
+        batch_card.grid_columnconfigure(0, weight=1)
 
-        # 詳細オプション（折りたたみ）
-        self.advanced_var = tk.BooleanVar(value=self.config_manager.get('advanced_expanded', False))
-        self.advanced_frame = ttk.LabelFrame(frame, text=f"▶ {t('advanced_options')}", padding=SPACING["md"])
-        self.advanced_frame.grid(row=3, column=0, sticky='ew', pady=(0, SPACING["md"]))
-        self.advanced_frame.grid_columnconfigure(0, weight=1)
-        self.advanced_frame.bind("<Button-1>", self._toggle_advanced)
+        if can_batch:
+            # Proバッジ
+            tk.Label(batch_card, text="Pro", font=(FONT_FAMILY_SANS, 8, 'bold'),
+                     fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).grid(row=0, column=0, sticky='e')
 
-        self.advanced_content = ttk.Frame(self.advanced_frame)
-        self._create_advanced_options()
+            # 一括抽出ボタン
+            tk.Button(batch_card, text=t('btn_batch_extract'), font=btn_font,
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._batch_extract_dialog).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["xs"]))
 
-        if self.advanced_var.get():
-            self.advanced_content.grid(row=0, column=0, sticky='ew')
-            self.advanced_frame.configure(text=f"▼ {t('advanced_options')}")
+            # 一括更新ボタン
+            tk.Button(batch_card, text=t('btn_batch_update'), font=btn_font,
+                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
+                      activebackground=COLOR_PALETTE["secondary_hover"],
+                      padx=SPACING["md"], pady=SPACING["sm"],
+                      cursor="hand2", command=self._batch_update_dialog).grid(row=2, column=0, sticky='ew')
+        else:
+            tk.Label(batch_card, text=f"{t('btn_batch_extract')} (Pro)", font=btn_font,
+                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=0, column=0, sticky='w', pady=(0, SPACING["xs"]))
+            tk.Label(batch_card, text=f"{t('btn_batch_update')} (Pro)", font=btn_font,
+                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=1, column=0, sticky='w')
+
+        # ============ 2ファイル比較ボタン ============
+        compare_text = t('btn_compare') if can_compare else f"{t('btn_compare')} (STD)"
+        tk.Button(frame, text=compare_text, font=btn_font,
+                  bg=COLOR_PALETTE["secondary_default"] if can_compare else COLOR_PALETTE["bg_secondary"],
+                  fg=COLOR_PALETTE["text_secondary"] if can_compare else COLOR_PALETTE["text_muted"],
+                  activebackground=COLOR_PALETTE["secondary_hover"] if can_compare else COLOR_PALETTE["bg_secondary"],
+                  relief="flat", padx=SPACING["md"], pady=SPACING["sm"],
+                  cursor="hand2" if can_compare else "arrow",
+                  command=self._show_compare_dialog if can_compare else None,
+                  state='normal' if can_compare else 'disabled').grid(row=3, column=0, sticky='ew', pady=(0, SPACING["md"]))
 
         # ステータス＆ミニログ
         status_frame = ttk.Frame(frame, style='Main.TFrame')
-        status_frame.grid(row=5, column=0, sticky='sew')
+        status_frame.grid(row=4, column=0, sticky='sew')
 
         # プログレスバー（処理中のみ表示）
         self.progress = ttk.Progressbar(status_frame, mode='indeterminate')
@@ -1578,161 +1639,6 @@ class InsightSlidesApp:
         btn_frame.pack(fill='x', pady=(SPACING["sm"], 0))
         self.cancel_btn = ttk.Button(btn_frame, text=t('btn_cancel'), command=self._cancel, state='disabled')
         self.cancel_btn.pack(side='left')
-
-        self._switch_extract()
-
-    def _create_extract_panel(self):
-        """抽出パネル - ファイル選択とオプション"""
-        self.extract_frame = ttk.Frame(self.file_card)
-        self.extract_frame.grid_columnconfigure(0, weight=1)
-
-        # メタデータ
-        self.include_metadata_var = tk.BooleanVar(value=self.config_manager.get('include_metadata', True))
-        ttk.Checkbutton(self.extract_frame, text=t('setting_include_meta'),
-                        variable=self.include_metadata_var).grid(row=0, column=0, sticky='w', pady=(0, SPACING["md"]))
-
-        # プライマリボタン
-        tk.Button(self.extract_frame, text=t('btn_single_file'), font=(FONT_FAMILY_SANS, 10),
-                  bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF", relief="flat",
-                  activebackground=COLOR_PALETTE["brand_hover"],
-                  padx=SPACING["lg"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._extract_single).grid(row=1, column=0, sticky='ew')
-
-    def _create_update_panel(self):
-        """更新パネル - データソース選択"""
-        self.update_frame = ttk.Frame(self.file_card)
-        self.update_frame.grid_columnconfigure(0, weight=1)
-
-        # 制限注意
-        limit = self.license_manager.get_update_limit()
-        if limit:
-            warn_frame = tk.Frame(self.update_frame, bg=COLOR_PALETTE["warning_light"], padx=SPACING["sm"], pady=SPACING["xs"])
-            warn_frame.grid(row=0, column=0, sticky='ew', pady=(0, SPACING["md"]))
-            tk.Label(warn_frame, text=t('msg_update_limit', limit), font=FONTS["small"],
-                    fg=COLOR_PALETTE["warning"], bg=COLOR_PALETTE["warning_light"]).pack(anchor='w')
-
-        # プライマリボタン
-        tk.Button(self.update_frame, text=t('btn_from_excel'), font=(FONT_FAMILY_SANS, 10),
-                  bg=COLOR_PALETTE["action_update"], fg="#FFFFFF", relief="flat",
-                  activebackground="#047857",
-                  padx=SPACING["lg"], pady=SPACING["sm"],
-                  cursor="hand2", command=self._update_excel).grid(row=1, column=0, sticky='ew', pady=(0, SPACING["sm"]))
-
-        # セカンダリボタン（JSON）- Pro版以上
-        if self.license_manager.can_json():
-            tk.Button(self.update_frame, text=t('btn_from_json'), font=(FONT_FAMILY_SANS, 10),
-                      bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"], relief="flat",
-                      activebackground=COLOR_PALETTE["secondary_hover"],
-                      padx=SPACING["md"], pady=SPACING["sm"],
-                      cursor="hand2", command=self._update_json).grid(row=2, column=0, sticky='ew')
-        else:
-            tk.Label(self.update_frame, text=f"{t('btn_from_json')} (Pro)", font=(FONT_FAMILY_SANS, 10),
-                     fg=COLOR_PALETTE["text_muted"], bg=COLOR_PALETTE["bg_primary"]).grid(row=2, column=0, sticky='w')
-
-    def _create_batch_panel(self, parent):
-        """フォルダ一括処理パネル"""
-        # ヘッダー（タイトル + PRO バッジ）
-        header_frame = tk.Frame(parent, bg=COLOR_PALETTE["bg_primary"])
-        header_frame.pack(fill='x', pady=(0, SPACING["sm"]))
-
-        tk.Label(header_frame, text=t('panel_batch'), font=FONTS["body_bold"],
-                 fg=COLOR_PALETTE["text_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left')
-
-        # バッチ処理はPro版以上
-        can_batch = self.license_manager.can_batch()
-        can_json = self.license_manager.can_json()
-
-        if can_batch:
-            tk.Label(header_frame, text="Pro", font=(FONT_FAMILY_SANS, 9, 'bold'),
-                     fg=COLOR_PALETTE["brand_primary"], bg=COLOR_PALETTE["bg_primary"]).pack(side='left', padx=(SPACING["sm"], 0))
-
-        # ボタンスタイル（アウトライン）
-        outline_color = COLOR_PALETTE["brand_primary"]
-        disabled_color = COLOR_PALETTE["text_muted"]
-
-        # 出力ボタン（Excel）- Pro版以上
-        if can_batch:
-            export_excel_btn = tk.Button(parent, text=t('btn_batch_export_excel'), font=(FONT_FAMILY_SANS, 10),
-                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                         relief="solid", bd=1, highlightthickness=0,
-                                         activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                         padx=SPACING["md"], pady=SPACING["sm"],
-                                         cursor="hand2", command=lambda: self._extract_batch("excel"))
-            export_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
-        else:
-            ttk.Label(parent, text=f"{t('btn_batch_export_excel')} (Pro)",
-                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
-
-        # 出力ボタン（JSON）- Pro + JSON対応のみ
-        if can_batch and can_json:
-            export_json_btn = tk.Button(parent, text=t('btn_batch_export_json'), font=(FONT_FAMILY_SANS, 10),
-                                        bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                        relief="solid", bd=1, highlightthickness=0,
-                                        activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                        padx=SPACING["md"], pady=SPACING["sm"],
-                                        cursor="hand2", command=lambda: self._extract_batch("json"))
-            export_json_btn.pack(fill='x', pady=(0, SPACING["sm"]))
-        else:
-            ttk.Label(parent, text=f"{t('btn_batch_export_json')} (Pro)",
-                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["sm"]))
-
-        # 読込ボタン（Excel）- Pro版以上
-        if can_batch:
-            import_excel_btn = tk.Button(parent, text=t('btn_batch_import_excel'), font=(FONT_FAMILY_SANS, 10),
-                                         bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                         relief="solid", bd=1, highlightthickness=0,
-                                         activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                         padx=SPACING["md"], pady=SPACING["sm"],
-                                         cursor="hand2", command=lambda: self._update_batch("excel"))
-            import_excel_btn.pack(fill='x', pady=(0, SPACING["xs"]))
-        else:
-            ttk.Label(parent, text=f"{t('btn_batch_import_excel')} (Pro)",
-                      style='Muted.TLabel').pack(anchor='w', pady=(0, SPACING["xs"]))
-
-        # 読込ボタン（JSON）- Pro + JSON対応のみ
-        if can_batch and can_json:
-            import_json_btn = tk.Button(parent, text=t('btn_batch_import_json'), font=(FONT_FAMILY_SANS, 10),
-                                        bg=COLOR_PALETTE["bg_primary"], fg=outline_color,
-                                        relief="solid", bd=1, highlightthickness=0,
-                                        activebackground=COLOR_PALETTE["bg_secondary"], activeforeground=outline_color,
-                                        padx=SPACING["md"], pady=SPACING["sm"],
-                                        cursor="hand2", command=lambda: self._update_batch("json"))
-            import_json_btn.pack(fill='x')
-        else:
-            ttk.Label(parent, text=f"{t('btn_batch_import_json')} (Pro)",
-                      style='Muted.TLabel').pack(anchor='w')
-
-    def _create_advanced_options(self):
-        # スピーカーノート
-        self.include_notes_var = tk.BooleanVar(value=False)
-        can_notes = self.license_manager.is_pro()
-        cb = ttk.Checkbutton(self.advanced_content, text=t('chk_include_notes'),
-                             variable=self.include_notes_var,
-                             state='normal' if can_notes else 'disabled')
-        cb.grid(row=0, column=0, sticky='w')
-        if not can_notes:
-            ttk.Label(self.advanced_content, text="(Pro)", foreground=COLOR_PALETTE["text_muted"]).grid(row=0, column=1, sticky='w')
-
-        # 自動バックアップ
-        self.auto_backup_var = tk.BooleanVar(value=self.config_manager.get('auto_backup', True))
-        can_backup = self.license_manager.is_pro()
-        cb2 = ttk.Checkbutton(self.advanced_content, text=t('setting_auto_backup'),
-                              variable=self.auto_backup_var,
-                              state='normal' if can_backup else 'disabled')
-        cb2.grid(row=1, column=0, sticky='w')
-        if not can_backup:
-            ttk.Label(self.advanced_content, text="(Pro)", foreground=COLOR_PALETTE["text_muted"]).grid(row=1, column=1, sticky='w')
-
-    def _toggle_advanced(self, event=None):
-        if self.advanced_var.get():
-            self.advanced_content.grid_remove()
-            self.advanced_frame.configure(text=f"▶ {t('advanced_options')}")
-            self.advanced_var.set(False)
-        else:
-            self.advanced_content.grid(row=0, column=0, sticky='ew')
-            self.advanced_frame.configure(text=f"▼ {t('advanced_options')}")
-            self.advanced_var.set(True)
-        self.config_manager.set('advanced_expanded', self.advanced_var.get())
 
     def _create_output(self, parent):
         """右側メインコンテンツ - 編集専用エリア"""
@@ -1986,29 +1892,6 @@ class InsightSlidesApp:
                   bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   relief="flat", padx=SPACING["md"], pady=SPACING["xs"],
                   command=dialog.destroy).pack(side='right')
-
-    # === Mode switching ===
-    def _switch_extract(self):
-        """抽出モードに切替"""
-        self.current_mode = "extract"
-        # ボタン状態更新
-        self.extract_btn.configure(bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF")
-        self.update_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.mode_desc_label.configure(text=t('mode_desc_extract'))
-        self.update_frame.grid_remove()
-        self.extract_frame.grid(row=0, column=0, sticky='nsew')
-
-    def _switch_update(self):
-        """更新モードに切替"""
-        self.current_mode = "update"
-        # ボタン状態更新
-        self.extract_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.update_btn.configure(bg=COLOR_PALETTE["action_update"], fg="#FFFFFF")
-        self.compare_btn.configure(bg=COLOR_PALETTE["secondary_default"], fg=COLOR_PALETTE["text_secondary"])
-        self.mode_desc_label.configure(text=t('mode_desc_update'))
-        self.extract_frame.grid_remove()
-        self.update_frame.grid(row=0, column=0, sticky='nsew')
 
     def _change_language(self, lang):
         if lang != get_language():
@@ -2608,6 +2491,114 @@ class InsightSlidesApp:
 
         if self.save_to_file(data, path, "json"):
             messagebox.showinfo(t('dialog_complete'), t('result_export_complete', path))
+
+    def _load_excel_to_grid(self):
+        """Excelファイルをグリッドにロードする"""
+        path = filedialog.askopenfilename(
+            title=t('btn_load_excel'),
+            filetypes=[("Excel", "*.xlsx")]
+        )
+        if not path:
+            return
+
+        try:
+            wb = openpyxl.load_workbook(path)
+            ws = wb.active
+            headers = [c.value for c in ws[1]]
+
+            # ヘッダー列を特定
+            try:
+                si = headers.index("スライド番号") if "スライド番号" in headers else headers.index("slide")
+                oi = headers.index("オブジェクトID") if "オブジェクトID" in headers else headers.index("id")
+                ti = headers.index("テキスト内容") if "テキスト内容" in headers else headers.index("text")
+                type_i = headers.index("タイプ") if "タイプ" in headers else (headers.index("type") if "type" in headers else None)
+            except ValueError:
+                messagebox.showerror(t('dialog_error'), t('log_invalid_header'))
+                return
+
+            data = []
+            for row in list(ws.rows)[1:]:
+                try:
+                    slide = str(row[si].value) if row[si].value else ""
+                    oid = str(row[oi].value) if row[oi].value else ""
+                    txt = str(row[ti].value) if row[ti].value else ""
+                    obj_type = str(row[type_i].value) if type_i is not None and row[type_i].value else ""
+                    if txt == "None":
+                        txt = ""
+                    if slide and oid:
+                        data.append({
+                            "slide": slide,
+                            "id": oid,
+                            "type": obj_type,
+                            "text": txt
+                        })
+                except Exception:
+                    pass
+
+            if data:
+                self.extracted_data = data
+                self.grid_view.load_data(data)
+                self._show_edit_area()
+                self._update_file_info(os.path.basename(path), len(data))
+                self._log(f"✅ {t('status_complete_items', len(data))}", "success")
+            else:
+                messagebox.showwarning(t('dialog_error'), t('log_no_text'))
+
+        except Exception as e:
+            save_error_log(e, "_load_excel_to_grid")
+            messagebox.showerror(t('dialog_error'), str(e))
+
+    def _load_json_to_grid(self):
+        """JSONファイルをグリッドにロードする"""
+        if not self.license_manager.can_json():
+            messagebox.showinfo(t('dialog_error'), "JSON機能はPro版以上が必要です")
+            return
+
+        path = filedialog.askopenfilename(
+            title=t('btn_load_json'),
+            filetypes=[("JSON", "*.json")]
+        )
+        if not path:
+            return
+
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                json_data = json.load(f)
+
+            data = []
+            for item in json_data:
+                slide = str(item.get('スライド番号') or item.get('slide', ''))
+                oid = str(item.get('オブジェクトID') or item.get('id', ''))
+                txt = str(item.get('テキスト内容') or item.get('text', ''))
+                obj_type = str(item.get('タイプ') or item.get('type', ''))
+                if slide and oid:
+                    data.append({
+                        "slide": slide,
+                        "id": oid,
+                        "type": obj_type,
+                        "text": txt
+                    })
+
+            if data:
+                self.extracted_data = data
+                self.grid_view.load_data(data)
+                self._show_edit_area()
+                self._update_file_info(os.path.basename(path), len(data))
+                self._log(f"✅ {t('status_complete_items', len(data))}", "success")
+            else:
+                messagebox.showwarning(t('dialog_error'), t('log_no_text'))
+
+        except Exception as e:
+            save_error_log(e, "_load_json_to_grid")
+            messagebox.showerror(t('dialog_error'), str(e))
+
+    def _batch_extract_dialog(self):
+        """フォルダ一括抽出（Excel形式）"""
+        self._extract_batch("excel")
+
+    def _batch_update_dialog(self):
+        """フォルダ一括更新（Excel形式）"""
+        self._update_batch("excel")
 
     # === Dialogs ===
     def _check_license_on_startup(self):
