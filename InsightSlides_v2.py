@@ -10,7 +10,7 @@ by Harmonic Insight
 - インライングリッド編集
 - PPTX比較機能
 - フィルタ機能
-- 統一ライセンス形式 (INS-SLIDE-{TIER}-XXXX-XXXX-CC)
+- 統一ライセンス形式 (INSS-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC)
 - 折りたたみ可能なオプション
 """
 import tkinter as tk
@@ -2721,7 +2721,7 @@ class InsightSlidesApp:
         ttk.Separator(frame, orient='horizontal').pack(fill='x', pady=10)
 
         # フォーマット説明
-        ttk.Label(frame, text="形式: INS-SLIDE-{TIER}-{EMAIL_HASH}-XXXX-CC", font=FONTS["small"],
+        ttk.Label(frame, text="形式: INSS-{TIER}-XXXX-{EMAIL_HASH}-XXXX-CCCC", font=FONTS["small"],
                   foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 5))
         ttk.Label(frame, text="※メールアドレスとキーの組み合わせで認証されます", font=FONTS["small"],
                   foreground=COLOR_PALETTE["text_muted"]).pack(anchor='w', pady=(0, 10))
