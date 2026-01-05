@@ -49,8 +49,9 @@ COLORS = {
 }
 
 # ============== フォント設定 ==============
-# Windows標準フォント（クリーンで読みやすい）
-FONT_FAMILY = "Meiryo UI"
+# Windows標準UIフォント（Segoe UI Variable推奨）
+FONT_FAMILY = "Segoe UI Variable"
+FONT_FAMILY_FALLBACK = "Segoe UI"
 
 FONTS = {
     "title": (FONT_FAMILY, 16, "bold"),
