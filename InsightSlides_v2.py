@@ -1086,11 +1086,14 @@ class EditableGrid(ttk.Frame):
             )
             self.sheet.pack(fill="both", expand=True)
 
-            # 列幅設定
-            self.sheet.column_width(0, 80)   # slide
-            self.sheet.column_width(1, 100)  # id
-            self.sheet.column_width(2, 80)   # type
-            self.sheet.column_width(3, 800)  # text
+            # 列幅設定（スライド番号・IDは3桁なので狭く、テキストは広く）
+            self.sheet.column_width(0, 50)   # slide - 狭く
+            self.sheet.column_width(1, 50)   # id - 狭く
+            self.sheet.column_width(2, 80)   # type - そのまま
+            self.sheet.column_width(3, 600)  # text - 広く（残り幅を使用）
+
+            # 列の配置（スライド番号・IDは中央寄せ）
+            self.sheet.align_columns([0, 1], align="center")
 
             # 編集は4列目（text）のみ許可
             self.sheet.enable_bindings(
@@ -1119,10 +1122,10 @@ class EditableGrid(ttk.Frame):
             self.tree.heading("type", text=t('header_type'))
             self.tree.heading("text", text=t('header_text'))
 
-            self.tree.column("slide", width=80, minwidth=60, anchor="center", stretch=False)
-            self.tree.column("id", width=100, minwidth=80, stretch=False)
+            self.tree.column("slide", width=50, minwidth=40, anchor="center", stretch=False)
+            self.tree.column("id", width=50, minwidth=40, anchor="center", stretch=False)
             self.tree.column("type", width=80, minwidth=60, stretch=False)
-            self.tree.column("text", width=800, minwidth=300, stretch=True)
+            self.tree.column("text", width=600, minwidth=300, stretch=True)
 
             vsb = ttk.Scrollbar(sheet_frame, orient="vertical", command=self.tree.yview)
             hsb = ttk.Scrollbar(sheet_frame, orient="horizontal", command=self.tree.xview)
