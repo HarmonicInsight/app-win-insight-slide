@@ -1273,6 +1273,24 @@ class EditableGrid(ttk.Frame):
                     str(row.get("text", ""))
                 ])
             self.sheet.set_sheet_data(rows)
+
+            # データ読み込み後に列幅・行高さを自動調整
+            if rows:
+                # 列幅: スライド番号・IDは狭く固定、タイプは固定、テキストは広く
+                self.sheet.column_width(0, 50)   # slide
+                self.sheet.column_width(1, 50)   # id
+                self.sheet.column_width(2, 90)   # type
+                # テキスト列は内容に合わせて自動調整（最小400px）
+                self.sheet.set_column_widths([None, None, None, 500])
+
+                # 行高さを内容に合わせて自動調整
+                for row_idx in range(len(rows)):
+                    text_content = rows[row_idx][3] if len(rows[row_idx]) > 3 else ""
+                    # 改行数に応じて行高さを計算
+                    line_count = text_content.count('\n') + 1
+                    # 1行あたり約20px、最小40px、最大200px
+                    row_height = max(40, min(200, line_count * 22 + 20))
+                    self.sheet.row_height(row_idx, row_height)
         else:
             # Treeviewの場合
             for item in self.tree.get_children():
