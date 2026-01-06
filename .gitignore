@@ -7,10 +7,11 @@ __pycache__/
 # Distribution / packaging
 dist/
 build/
+release/
 *.egg-info/
 
 # PyInstaller
-*.spec
+# *.spec (保持: InsightSlides_v2.spec)
 
 # IDE
 .idea/
@@ -24,3 +25,6 @@ Thumbs.db
 
 # Project specific
 *.log
+
+# Archive
+archive_old/
