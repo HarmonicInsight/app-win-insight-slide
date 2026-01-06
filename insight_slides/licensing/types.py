@@ -141,5 +141,8 @@ class ValidationResult:
 # 有効な製品コード（InsightSlide用）
 VALID_PRODUCT_CODES = [ProductCode.INSS, ProductCode.INSP]
 
+# Backward-compatible aliases (older code expects these names)
+PRODUCT_CODE = ProductCode.INSS
+
 # トライアル期間（日）
 TRIAL_DAYS = 14
