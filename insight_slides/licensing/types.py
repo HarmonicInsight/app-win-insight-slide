@@ -20,7 +20,7 @@ class LicenseTier(str, Enum):
     TRIAL = "TRIAL"    # トライアル (14日間)
     STD = "STD"        # Standard (年間)
     PRO = "PRO"        # Professional (年間)
-　　ENT = "ENT"  # backward compatible (old UI expects ENT)
+    ENT ＝”ENT" #backward compatible(Old UI expects ENT)
 
 class ErrorCode(Enum):
     """エラーコード"""
