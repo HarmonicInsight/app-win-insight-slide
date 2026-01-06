@@ -1280,8 +1280,7 @@ class EditableGrid(ttk.Frame):
                 self.sheet.column_width(0, 50)   # slide
                 self.sheet.column_width(1, 50)   # id
                 self.sheet.column_width(2, 90)   # type
-                # テキスト列は内容に合わせて自動調整（最小400px）
-                self.sheet.set_column_widths([None, None, None, 500])
+                self.sheet.column_width(3, 500)  # text
 
                 # 行高さを内容に合わせて自動調整
                 for row_idx in range(len(rows)):
