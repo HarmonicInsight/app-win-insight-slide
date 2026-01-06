@@ -1047,10 +1047,11 @@ class EditableGrid(ttk.Frame):
         ttk.Label(toolbar, text=t('filter_label')).pack(side="left", padx=(0, 5))
         self.filter_var = tk.StringVar()
         self.filter_entry = ttk.Entry(toolbar, textvariable=self.filter_var, width=20)
-        self.filter_entry.pack(side="left", padx=(0, 5))
+        self.filter_entry.pack(side="left", padx=(0, 2))
         self.filter_var.trace_add("write", lambda *args: self._apply_filter())
 
-        ttk.Button(toolbar, text=t('btn_clear_grid'), command=self._clear_filter).pack(side="left")
+        # クリアボタン（フィルタ用、小さく）
+        ttk.Button(toolbar, text="×", width=2, command=self._clear_filter).pack(side="left", padx=(0, 10))
 
         # スペーサー
         ttk.Frame(toolbar).pack(side="left", fill="x", expand=True)
@@ -1285,10 +1286,10 @@ class EditableGrid(ttk.Frame):
                 # 行高さを内容に合わせて自動調整
                 for row_idx in range(len(rows)):
                     text_content = rows[row_idx][3] if len(rows[row_idx]) > 3 else ""
-                    # 改行数に応じて行高さを計算
+                    # 改行数に応じて行高さを計算（余白を最小限に）
                     line_count = text_content.count('\n') + 1
-                    # 1行あたり約20px、最小40px、最大200px
-                    row_height = max(40, min(200, line_count * 22 + 20))
+                    # 1行あたり約18px、最小25px、最大200px
+                    row_height = max(25, min(200, line_count * 18 + 6))
                     self.sheet.row_height(row_idx, row_height)
         else:
             # Treeviewの場合
@@ -1448,11 +1449,12 @@ class CompareDialog:
         self.callback = callback
         self.dialog = tk.Toplevel(parent)
         self.dialog.title("PPTX比較")
-        self.dialog.geometry("600x280")
+        self.dialog.geometry("650x380")
         self.dialog.transient(parent)
         self.dialog.grab_set()
 
         self._create_widgets()
+        self._setup_dnd()
 
     def _create_widgets(self):
         frame = ttk.Frame(self.dialog, padding=20)
@@ -1460,25 +1462,35 @@ class CompareDialog:
 
         ttk.Label(frame, text=t('compare_title'), font=FONTS["heading"]).pack(anchor='w', pady=(0, 15))
 
-        # ファイル1
-        f1 = ttk.Frame(frame)
-        f1.pack(fill='x', pady=5)
-        ttk.Label(f1, text=t('compare_file1'), width=12).pack(side='left')
+        # ファイル1（ドロップゾーン）
+        ttk.Label(frame, text=t('compare_file1')).pack(anchor='w')
         self.file1_var = tk.StringVar()
-        ttk.Entry(f1, textvariable=self.file1_var, width=45).pack(side='left', padx=5)
-        ttk.Button(f1, text=t('btn_browse'), command=lambda: self._browse(self.file1_var)).pack(side='left')
+        self.drop1 = tk.Frame(frame, bg=COLOR_PALETTE["bg_secondary"], relief="groove", bd=2, height=60)
+        self.drop1.pack(fill='x', pady=(5, 10))
+        self.drop1.pack_propagate(False)
+        self.drop1_label = tk.Label(self.drop1, text="📁 ファイルをドロップまたはクリック (.pptx)",
+                                    bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_muted"],
+                                    cursor="hand2")
+        self.drop1_label.pack(expand=True)
+        self.drop1_label.bind("<Button-1>", lambda e: self._browse(self.file1_var, self.drop1_label))
+        self.drop1.bind("<Button-1>", lambda e: self._browse(self.file1_var, self.drop1_label))
 
-        # ファイル2
-        f2 = ttk.Frame(frame)
-        f2.pack(fill='x', pady=5)
-        ttk.Label(f2, text=t('compare_file2'), width=12).pack(side='left')
+        # ファイル2（ドロップゾーン）
+        ttk.Label(frame, text=t('compare_file2')).pack(anchor='w')
         self.file2_var = tk.StringVar()
-        ttk.Entry(f2, textvariable=self.file2_var, width=45).pack(side='left', padx=5)
-        ttk.Button(f2, text=t('btn_browse'), command=lambda: self._browse(self.file2_var)).pack(side='left')
+        self.drop2 = tk.Frame(frame, bg=COLOR_PALETTE["bg_secondary"], relief="groove", bd=2, height=60)
+        self.drop2.pack(fill='x', pady=(5, 10))
+        self.drop2.pack_propagate(False)
+        self.drop2_label = tk.Label(self.drop2, text="📁 ファイルをドロップまたはクリック (.pptx)",
+                                    bg=COLOR_PALETTE["bg_secondary"], fg=COLOR_PALETTE["text_muted"],
+                                    cursor="hand2")
+        self.drop2_label.pack(expand=True)
+        self.drop2_label.bind("<Button-1>", lambda e: self._browse(self.file2_var, self.drop2_label))
+        self.drop2.bind("<Button-1>", lambda e: self._browse(self.file2_var, self.drop2_label))
 
         # オプション
         opt = ttk.Frame(frame)
-        opt.pack(fill='x', pady=15)
+        opt.pack(fill='x', pady=10)
         self.ignore_ws = tk.BooleanVar(value=True)
         ttk.Checkbutton(opt, text=t('compare_ignore_ws'), variable=self.ignore_ws).pack(side='left')
 
@@ -1489,10 +1501,32 @@ class CompareDialog:
         tk.Button(btn, text=t('btn_run_compare'), bg=COLOR_PALETTE["brand_primary"], fg="#FFFFFF",
                   command=self._execute).pack(side='left', padx=10)
 
-    def _browse(self, var):
+    def _setup_dnd(self):
+        """ドラッグ&ドロップの設定（tkdnd利用可能な場合）"""
+        try:
+            # Windows向けDnD設定
+            self.drop1.drop_target_register('DND_Files')
+            self.drop1.dnd_bind('<<Drop>>', lambda e: self._on_drop(e, self.file1_var, self.drop1_label))
+            self.drop2.drop_target_register('DND_Files')
+            self.drop2.dnd_bind('<<Drop>>', lambda e: self._on_drop(e, self.file2_var, self.drop2_label))
+        except:
+            pass  # DnDが利用できない環境では無視
+
+    def _on_drop(self, event, var, label):
+        """ファイルドロップ時の処理"""
+        path = event.data
+        # Windowsでは{}で囲まれる場合がある
+        if path.startswith('{') and path.endswith('}'):
+            path = path[1:-1]
+        if path.lower().endswith('.pptx'):
+            var.set(path)
+            label.configure(text=f"✅ {os.path.basename(path)}", fg=COLOR_PALETTE["text_primary"])
+
+    def _browse(self, var, label):
         path = filedialog.askopenfilename(filetypes=[("PowerPoint", "*.pptx")])
         if path:
             var.set(path)
+            label.configure(text=f"✅ {os.path.basename(path)}", fg=COLOR_PALETTE["text_primary"])
 
     def _execute(self):
         f1, f2 = self.file1_var.get(), self.file2_var.get()
@@ -2340,11 +2374,25 @@ class InsightSlidesApp:
     def save_to_file(self, data: List[Dict], path: str, fmt: str = "excel") -> bool:
         try:
             if fmt == "excel":
+                from openpyxl.styles import Alignment
                 wb = openpyxl.Workbook()
                 ws = wb.active
                 ws.append([t('header_slide'), t('header_id'), t('header_type'), t('header_text')])
                 for row in data:
                     ws.append([row["slide"], row["id"], row["type"], row["text"]])
+
+                # 列幅を設定（スライド番号・ID・タイプは見切れないように、テキストは広く）
+                ws.column_dimensions['A'].width = 12  # スライド番号
+                ws.column_dimensions['B'].width = 14  # オブジェクトID
+                ws.column_dimensions['C'].width = 14  # タイプ
+                ws.column_dimensions['D'].width = 80  # テキスト内容
+
+                # 全セルに折り返し表示を適用
+                wrap_alignment = Alignment(wrap_text=True, vertical='top')
+                for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=4):
+                    for cell in row:
+                        cell.alignment = wrap_alignment
+
                 wb.save(path)
             elif fmt == "json":
                 with open(path, 'w', encoding='utf-8') as f:
